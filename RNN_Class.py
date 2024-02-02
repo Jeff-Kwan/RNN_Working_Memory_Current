@@ -460,6 +460,7 @@ class RNN(nn.Module):
         for name, buffer in self.named_buffers():
             buffer.data = buffer.data.to(device)
         self.device = device
+        print(f'Running on {device}')
 
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
