@@ -12,11 +12,11 @@ model_name = 'Model_1'
 # Model Hyperparameters
 activation = 'relu'
 reg = 0.0001
-w_var = 0.1
+w_var = 0.01
 
 # Training Hyperparameters
 N_EPOCHS = 2000
-LEARNING_RATE = 0.003
+LEARNING_RATE = 0.002
 
 
 '''~~~      DMS Task            ~~~'''

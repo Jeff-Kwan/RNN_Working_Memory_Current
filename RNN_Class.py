@@ -200,8 +200,8 @@ class RNN(nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         loss_fn = nn.CrossEntropyLoss()
         best_loss = np.inf
-        best_acc = 0
         save_delay = 10
+        best_acc = 0
 
         self.acc = []
         start_time = time()
@@ -229,7 +229,7 @@ class RNN(nn.Module):
             progress_bar(self.num_epochs, epoch, start_time, f"Loss: {total_loss:.4f}")
 
             # Save Better Models (with delay)
-            if total_loss < best_loss and self.acc[-1] >= best_acc and save_delay < 0:
+            if (total_loss<best_loss) and (save_delay<0) and (self.acc[-1]==1.0):
                 best_loss = total_loss
                 best_acc = self.acc[-1]
                 self.save_model()
@@ -339,6 +339,7 @@ class RNN(nn.Module):
         ax1.set_xlabel("Epoch")
         ax1.set_ylabel("Loss", color='b')
         ax1.tick_params('y', colors='b')
+        ax1.set_yscale('log')  # Set y-axis to log scale
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
         ax2.set_ylabel("Accuracy", color='orange')
