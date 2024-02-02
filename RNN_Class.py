@@ -467,7 +467,7 @@ class RNN(nn.Module):
         f'{self.w_var}_wvar / {self.reg_hyp}_reg / {self.activation}_activation / '
         f'{self.num_epochs}_epochs / {self.learning_rate}_rate / {self.N_stim}D_DMS / '
         f'{self.N_cell}_cells / \n@ {len(self.training_losses)}/{self.num_epochs} '
-        f'training steps, current loss: {self.training_losses[-1]}')
+        f'training steps, loss = {self.training_losses[-1]}')
         torch.save({
             'model_state_dict': self.state_dict(),
             'description': description,

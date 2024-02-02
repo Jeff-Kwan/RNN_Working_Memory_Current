@@ -11,12 +11,12 @@ model_name = 'Model_1'
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 0.0002
+reg = 0.0001
 w_var = 0.1
 
 # Training Hyperparameters
 N_EPOCHS = 2000
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.003
 
 
 '''~~~      DMS Task            ~~~'''
@@ -43,6 +43,9 @@ model.train_model(stimuli, labels)
 model.test(stimuli, labels)
 
 '''~~~      Model Evaluation    ~~~'''
+# Load Saved Best Model
+model = RNN(dir='Models', name=model_name)
+
 # Model Evaluation
 model.eval()
 model.forward(stimuli)
