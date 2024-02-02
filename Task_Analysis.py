@@ -5,7 +5,7 @@ from RNN_Class import RNN
 start_time = time()
 
 # Load Model
-model_name = 'Model_6'
+model_name = 'Model_1'
 model = RNN('Models', model_name)
 
 # DMS Data & Run Model
@@ -18,6 +18,9 @@ labels = torch.tensor([[[0,1], [1,0]],
                        [[1,0], [0,1]],
                        [[1,0], [1,0]]], dtype=torch.float)
 
+# Test Model
+model.test(stimuli, labels)
+
 # Model Evaluation
 model.eval()
 model.forward(stimuli)
@@ -27,7 +30,6 @@ model.plot_pca_trajectories_2D(stimuli, f"Trajectories in PC1-PC2 space for DMS 
 model.plot_abs_activity(stimuli)
 model.plot_drs(stimuli)
 #model.plot_gradient_field(stimuli)
-
 
 
 # Time Elapsed

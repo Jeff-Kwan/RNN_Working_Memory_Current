@@ -17,21 +17,9 @@ class RNN(nn.Module):
     '''Class for training and analysing RNNs.
        Automatically loads model if model name exists in directory.
        N_CELL and N_STIM need to be intially defined.'''
-    def __init__(self, dir, name, N_CELL=10, N_STIM=2):
+    def __init__(self, dir, name):
         # Inheritance from torch.nn
         super(RNN,self).__init__()
-
-        self.N_cell = N_CELL
-        self.N_stim = N_STIM
-
-        # Recurrent parameters
-        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_CELL).uniform_(-0.01,0.01))
-        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_CELL, 1).uniform_(-0.01,0.01))
-
-        # Input and output weights
-        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_STIM).uniform_(-0.5,0.5))
-        self.out_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
-        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
 
         # Utility
         self.name = name
@@ -39,16 +27,35 @@ class RNN(nn.Module):
         try:
             os.makedirs(self.dir, exist_ok=False)
         except FileExistsError:
-            print(f"Model {name} already exists. Loading model...")
-            self.load_model(name)
+            if os.path.isfile(os.path.join(self.dir, f'{name}.pt')):
+                print(f"Model {name} already exists. Loading model...")
+                self.load_model(name)
+            else:
+                print(f"Directory {name} exists but no model found. Proceeding with new model?")
 
-    def hyp(self, task='dms', activation='relu', lr=0.001, num_epochs=1000, reg=0.0001):
+
+    def hyp(self, task='dms', activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
         '''Set hyperparameters'''
+        self.N_cell = N_CELL
+        self.N_stim = N_STIM
+        self.w_var = w_var
+        w_std = np.sqrt(w_var)
+
+        # Recurrent parameters
+        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_CELL).uniform_(-w_std,w_std))
+        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_CELL, 1).uniform_(-w_std,w_std))
+
+        # Input and output weights
+        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_STIM).uniform_(-w_std,w_std))
+        self.out_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-w_std,w_std))
+        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-w_std,w_std))
+
+        # Hyperparameters
         self.activation = activation
         self.task = task
 
         # Constants
-        self.dt = 0.01      # 20 ms
+        self.dt = 0.02      # 20 ms
         self.tau = 0.1      # 100 ms
         self.noise = 0.1
         self.T_cycle = 50   # int(0.5/self.dt)
@@ -78,18 +85,18 @@ class RNN(nn.Module):
 
     def dms_task_epochs(self, rand=False):
         '''Set epochs for delayed match to sample task'''
+        self.fixation_len = self.get_epoch(self.T_cycle, rand)
+        self.sample_len =self.get_epoch(self.T_cycle, rand)
+        self.delay_len = self.get_epoch(self.T_cycle*2, rand)
+        self.test_len = self.get_epoch(self.T_cycle, rand)
+        self.response_len = self.get_epoch(self.T_cycle, rand)
+
+    def get_epoch(self, time, rand):
+        '''Get the number of timesteps of an epochs for a task'''
         if rand:
-            self.fixation_len = np.random.randint(80, 120)
-            self.sample_len = np.random.randint(30, 70)
-            self.delay_len = np.random.randint(80, 120)
-            self.test_len = np.random.randint(30, 70)
-            self.response_len = np.random.randint(80, 120)
+            return np.random.randint(time-20, time+20)
         else:
-            self.fixation_len = self.T_cycle*2
-            self.sample_len = self.T_cycle
-            self.delay_len = self.T_cycle*2
-            self.test_len = self.T_cycle
-            self.response_len = self.T_cycle*2
+            return time
 
     def phi(self, r):
         '''Activation function selection'''
@@ -192,8 +199,11 @@ class RNN(nn.Module):
         # Optimizer and Loss
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         loss_fn = nn.CrossEntropyLoss()
+        best_loss = np.inf
+        best_acc = 0
+        save_delay = 10
 
-        acc = []
+        self.acc = []
         start_time = time()
         for epoch in range(self.num_epochs):
             total_loss = 0
@@ -212,29 +222,23 @@ class RNN(nn.Module):
             total_loss = loss.item()
 
             self.training_losses.append(total_loss)
+            self.acc.append(self.test(train_data, train_labels, p=False))
+            save_delay -= 1
 
-            acc.append(self.test(train_data, train_labels, p=False))
             # Progress bar
             progress_bar(self.num_epochs, epoch, start_time, f"Loss: {total_loss:.4f}")
+
+            # Save Better Models (with delay)
+            if total_loss < best_loss and self.acc[-1] >= best_acc and save_delay < 0:
+                best_loss = total_loss
+                best_acc = self.acc[-1]
+                self.save_model()
+                save_delay = 10
 
         # Reset task epochs
         self.dms_task_epochs(rand=False)
 
         print('\nTraining Complete. \n')
-
-        # Plot Training Losses
-        fig, ax1 = plt.subplots()
-        ax1.plot(np.arange(len(self.training_losses)), self.training_losses, 'b-')
-        ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("Loss", color='b')
-        ax1.tick_params('y', colors='b')
-        ax2 = ax1.twinx()
-        ax2.plot(np.arange(len(acc)), acc, linestyle='--', color='orange')
-        ax2.set_ylabel("Accuracy", color='orange')
-        ax2.tick_params('y', colors='orange')
-        plt.title("Training Loss and Accuracy over Epochs")
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"))
 
 
     def pca(self):
@@ -326,6 +330,25 @@ class RNN(nn.Module):
         return accuracy
 
 
+
+
+    '''Plotting Methods'''
+    def plot_training_loss(self):
+        fig, ax1 = plt.subplots()
+        ax1.plot(np.arange(len(self.training_losses)), self.training_losses, 'b-')
+        ax1.set_xlabel("Epoch")
+        ax1.set_ylabel("Loss", color='b')
+        ax1.tick_params('y', colors='b')
+        ax2 = ax1.twinx()
+        ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
+        ax2.set_ylabel("Accuracy", color='orange')
+        ax2.tick_params('y', colors='orange')
+        plt.title("Training Loss and Accuracy over Epochs")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"))
+        plt.close()
+
+
     def plot_abs_activity(self, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
         # Compute the absolute value of the activities
@@ -359,6 +382,7 @@ class RNN(nn.Module):
         fig.legend(handles=lines, loc='lower right')
         plt.tight_layout()
         plt.savefig(os.path.join(self.dir, f"{self.name}_abs_activities.png"))
+        plt.close()
 
     def plot_drs(self, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
@@ -393,6 +417,7 @@ class RNN(nn.Module):
         fig.legend(handles=lines, loc='lower right')
         plt.tight_layout()
         plt.savefig(os.path.join(self.dir, f"{self.name}_drs.png"))
+        plt.close()
 
 
     def plot_gradient_field(self):
@@ -420,6 +445,7 @@ class RNN(nn.Module):
         plt.ylabel('PC2')
         plt.title('Gradient field of neural activity in PC1-PC2 space')
         plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_field.png"))
+        plt.close()
 
 
 
@@ -435,14 +461,19 @@ class RNN(nn.Module):
             buffer.data = buffer.data.to(device)
         self.device = device
 
-    def save_model(self, dir, name, description):
+    def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
+        description = (
+        f'{self.w_var}_wvar / {self.reg_hyp}_reg / {self.activation}_activation / '
+        f'{self.num_epochs}_epochs / {self.learning_rate}_rate / {self.N_stim}D_DMS / '
+        f'{self.N_cell}_cells / \n@ {len(self.training_losses)}/{self.num_epochs} '
+        f'training steps, current loss: {self.training_losses[-1]}')
         torch.save({
             'model_state_dict': self.state_dict(),
             'description': description,
-        }, os.path.join(self.dir, f'{name}.pt'))
-        print(f"Model and description saved to {dir} as {name}")
-        print(f"Description: \n{description}\n")
+        }, os.path.join(self.dir, f'{self.name}.pt'))
+        self.plot_training_loss()
+
 
     def load_model(self, name):
         """Load the model's state_dict and a description from the specified path.
@@ -450,11 +481,19 @@ class RNN(nn.Module):
         print(f"\nLoading {name}...")
         print(f"Accessing {self.dir}...")
         checkpoint = torch.load(os.path.join(self.dir, f'{name}.pt'))
-        self.load_state_dict(checkpoint['model_state_dict'])
         description = checkpoint.get('description', '')
         print(f"Description: \n{description}\n")
-        reg, activation, n_epochs, learning_rate, task = self.parse_description(description)
-        self.hyp(task=task, activation=activation, lr=learning_rate, num_epochs=n_epochs, reg=reg)
+        parts = description.split('/')
+        parts = [part.strip() for part in parts]
+        self.w_var = float(parts[0].split('_')[0])
+        self.reg_hyp = float(parts[1].split('_')[0])
+        self.activation = parts[2].split('_')[0]
+        self.num_epochs = int(parts[3].split('_')[0])
+        self.learning_rate = float(parts[4].split('_')[0])
+        self.N_stim = int(parts[5].split('D')[0])
+        self.N_cell = int(parts[6].split('_')[0])
+        self.hyp(task=self.N_stim, activation=self.activation, lr=self.learning_rate, num_epochs=self.num_epochs, reg=self.reg_hyp, w_var=self.w_var)
+        self.load_state_dict(checkpoint['model_state_dict'])
 
     def del_model(self, dir, name):
         """Delete the model's directory."""
