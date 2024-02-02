@@ -507,17 +507,6 @@ class RNN(nn.Module):
             print(f"{name}:")
             print(param.data)
 
-    def parse_description(self, description):
-        """Parse the variables from the description."""
-        parts = description.split(', ')
-        parameters = parts[1].split(' / ')
-        activation = parameters[1].split('_')[0]
-        n_epochs = int(parameters[2].split('_')[0])
-        learning_rate = float(parameters[3].split('_')[0])
-        task = 'dms' #parameters[4].split('_')[1].lower()
-        reg = float(parameters[5].split('_')[0])
-        return reg, activation, n_epochs, learning_rate, task
-
     def stim_AB(self, stim):
         '''Returns the stimulus A or B'''
         label = []
