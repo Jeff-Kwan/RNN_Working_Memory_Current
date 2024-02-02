@@ -42,13 +42,13 @@ class RNN(nn.Module):
         w_std = np.sqrt(w_var)
 
         # Recurrent parameters
-        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_CELL).uniform_(-w_std,w_std))
-        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_CELL, 1).uniform_(-w_std,w_std))
+        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_CELL).uniform_(-0.01,0.01))
+        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_CELL, 1).uniform_(-0.01,0.01))
 
         # Input and output weights
         self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_STIM).uniform_(-w_std,w_std))
-        self.out_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-w_std,w_std))
-        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-w_std,w_std))
+        self.out_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
+        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
 
         # Hyperparameters
         self.activation = activation
