@@ -17,7 +17,7 @@ class RNN(nn.Module):
     '''Class for training and analysing RNNs.
        Automatically loads model if model name exists in directory.
        N_CELL and N_STIM need to be intially defined.'''
-    def __init__(self, dir, name):
+    def __init__(self, dir, name, p=False):
         # Inheritance from torch.nn
         super(RNN,self).__init__()
 
@@ -28,10 +28,12 @@ class RNN(nn.Module):
             os.makedirs(self.dir, exist_ok=False)
         except FileExistsError:
             if os.path.isfile(os.path.join(self.dir, f'{name}.pt')):
-                print(f"Model {name} already exists. Loading model...")
-                self.load_model(name)
+                if p:
+                    print(f"Model {name} already exists. Loading model...")
+                self.load_model(name, p=p)
             else:
-                print(f"Directory {name} exists but no model found. Proceeding with new model?")
+                if p:
+                    print(f"Directory {name} exists but no model found. Proceeding with new model?")
 
 
     def hyp(self, task='dms', activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
@@ -188,8 +190,9 @@ class RNN(nn.Module):
 
 
     '''Training and Analysis Methods'''
-    def train_model(self, train_data, train_labels):
-        print("Initializing model training...")
+    def train_model(self, train_data, train_labels, p=True):
+        if p:
+            print("Initializing model training...")
 
         # Move to GPU
         train_data = train_data.to(self.device)
@@ -229,7 +232,7 @@ class RNN(nn.Module):
             progress_bar(self.num_epochs, epoch, start_time, f"Loss: {total_loss:.4f}")
 
             # Save Better Models (with delay)
-            if (total_loss<best_loss) and (save_delay<0) and (self.acc[-1]==1.0):
+            if (total_loss<best_loss) and (save_delay<0) and (self.acc[-1]>=best_acc):
                 best_loss = total_loss
                 best_acc = self.acc[-1]
                 self.save_model()
@@ -238,7 +241,8 @@ class RNN(nn.Module):
         # Reset task epochs
         self.dms_task_epochs(rand=False)
 
-        print('\nTraining Complete. \n')
+        if p:
+            print('\nTraining Complete. \n')
 
 
     def pca(self):
@@ -461,7 +465,7 @@ class RNN(nn.Module):
         for name, buffer in self.named_buffers():
             buffer.data = buffer.data.to(device)
         self.device = device
-        print(f'Running on {device}')
+        #print(f'Running on {device}')
 
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
@@ -477,15 +481,16 @@ class RNN(nn.Module):
         self.plot_training_loss()
 
 
-    def load_model(self, name):
+    def load_model(self, name, p=False):
         """Load the model's state_dict and a description from the specified path.
            Load n_cell, activation, n_stim."""
-        print(f"\nLoading {name}...")
-        print(f"Accessing {self.dir}...")
         checkpoint = torch.load(os.path.join(self.dir, f'{name}.pt'))
-        description = checkpoint.get('description', '')
-        print(f"Description: \n{description}\n")
-        parts = description.split('/')
+        self.description = checkpoint.get('description', '')
+        if p:
+            print(f"\nLoading {name}...")
+            print(f"Accessing {self.dir}...")
+            print(f"Description: \n{self.description}\n")
+        parts = self.description.split('/')
         parts = [part.strip() for part in parts]
         self.w_var = float(parts[0].split('_')[0])
         self.reg_hyp = float(parts[1].split('_')[0])
