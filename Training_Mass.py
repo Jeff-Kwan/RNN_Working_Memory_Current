@@ -24,19 +24,19 @@ activation = 'relu'
 reg = 0.0001
 
 # Training Hyperparameters
-N_EPOCHS = 3000
-LEARNING_RATE = 0.002
+N_EPOCHS = 2000
+LEARNING_RATE = 0.003
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.logspace(0.001, 0.1, 100)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.logspace(0.001, 0.01, 10)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 
 '''~~~      RNN Training        ~~~'''
 for i in range(len(w_var_arr)):
     print(f"\nTraining Model {i}/{len(w_var_arr)}...")
     # Model name
-    model_name = f'W_init {w_var_arr[i]} - Model {i+1} of {len(w_var_arr)}'
+    model_name = f'W_init - Model {i+1} of {len(w_var_arr)}'
     # Initialize the RNN model
     model = RNN(dir='Models', name=model_name)
     model.hyp('dms', activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var_arr[i])
