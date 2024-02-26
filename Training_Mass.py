@@ -24,12 +24,12 @@ activation = 'relu'
 reg = 0.0001
 
 # Training Hyperparameters
-N_EPOCHS = 2000
+N_EPOCHS = 2500
 LEARNING_RATE = 0.003
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.logspace(0.001, 0.01, 10)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.logspace(0.001, 0.01, 50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 
 '''~~~      RNN Training        ~~~'''

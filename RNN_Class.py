@@ -237,6 +237,10 @@ class RNN(nn.Module):
                 self.save_model()
                 save_delay = 10
 
+                # Early exit
+                if self.acc[-1] == 1.0 and total_loss[-1] < 0.3:
+                    break
+
         # Reset task epochs
         self.dms_task_epochs(rand=False)
 
