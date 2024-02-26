@@ -78,6 +78,7 @@ class RNN(nn.Module):
 
 
 
+
     '''Task Infrastructure'''
     def set_task(self, task='dms'):
         assert type(task) == str, "Definition of task must be a string."
@@ -89,7 +90,7 @@ class RNN(nn.Module):
         '''Set epochs for delayed match to sample task'''
         self.fixation_len = self.get_epoch(self.T_cycle, rand)
         self.sample_len =self.get_epoch(self.T_cycle, rand)
-        self.delay_len = self.get_epoch(self.T_cycle*2, rand)
+        self.delay_len = self.get_epoch(self.T_cycle, rand)
         self.test_len = self.get_epoch(self.T_cycle, rand)
         self.response_len = self.get_epoch(self.T_cycle, rand)
 
@@ -119,7 +120,6 @@ class RNN(nn.Module):
             return self.forward_dms(x)
         else:
             raise ValueError("Task not defined.")
-
 
     def forward_dms(self, x):
         '''Forward pass for delayed match to sample task with a residual network.
@@ -184,7 +184,6 @@ class RNN(nn.Module):
         self.drs = torch.squeeze(torch.stack(self.drs))
 
         return output
-
 
 
 
@@ -389,6 +388,7 @@ class RNN(nn.Module):
         plt.savefig(os.path.join(self.dir, f"{self.name}_abs_activities.png"))
         plt.close()
 
+
     def plot_drs(self, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
         # Compute the absolute value of the activities
@@ -453,6 +453,8 @@ class RNN(nn.Module):
         plt.close()
 
 
+    def plot_gradient_flow(self):
+        pass
 
 
 
@@ -467,6 +469,7 @@ class RNN(nn.Module):
         self.device = device
         #print(f'Running on {device}')
 
+
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
         description = (
@@ -479,7 +482,6 @@ class RNN(nn.Module):
             'description': description,
         }, os.path.join(self.dir, f'{self.name}.pt'))
         self.plot_training_loss()
-
 
     def load_model(self, name, p=False):
         """Load the model's state_dict and a description from the specified path.

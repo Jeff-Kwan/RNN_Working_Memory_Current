@@ -7,12 +7,12 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Model_1'
+model_name = 'Model_2'
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 0.0001
-w_var = 0.1         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+reg = 0.00001
+w_var = 0.01         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 # Training Hyperparameters
 N_EPOCHS = 2000
