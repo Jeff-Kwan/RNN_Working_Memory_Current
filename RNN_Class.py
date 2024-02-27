@@ -508,11 +508,12 @@ class RNN(nn.Module):
         self.hyp(task=self.N_stim, activation=self.activation, lr=self.learning_rate, num_epochs=self.num_epochs, reg=self.reg_hyp, w_var=self.w_var)
         self.load_state_dict(checkpoint['model_state_dict'])
 
-    def del_model(self, dir, name):
+    def del_model(self, dir, name, p=True):
         """Delete the model's directory."""
         assert self.dir == os.path.join(dir, name), "Model directory does not match."
         shutil.rmtree(self.dir)
-        print(f"{name} deleted from {dir}.")
+        if p:
+            print(f"{name} deleted from {dir}.")
 
     def print_model_parameters(self):
         """Print the model's parameters."""
