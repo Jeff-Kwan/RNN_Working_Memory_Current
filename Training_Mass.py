@@ -35,7 +35,7 @@ w_var_arr = np.logspace(0.001, 0.01, 50)         # Input Weight variance, 10x-10
 repeats = 3
 '''~~~      RNN Training        ~~~'''
 for i in range(len(w_var_arr)):
-    print(f"\nTraining Model {i}/{len(w_var_arr)}...")
+    print(f"\nTraining Model {i+1}/{len(w_var_arr)}...")
     # Model name
     model_name = f'W_init - Model {i+1} of {len(w_var_arr)}'
     model = RNN(dir='Models', name=model_name)
@@ -47,11 +47,8 @@ for i in range(len(w_var_arr)):
             with open(f'Models/{model_name}/Successful.txt', 'r') as file:
                 continue
         except FileNotFoundError:
-            # Delete Failed Model
-            try:
-                model.del_model(dir='Models', name=model_name, p=False)
-            except:
-                pass
+            pass
+
 
         '''~~~      Model Training    ~~~'''
 
