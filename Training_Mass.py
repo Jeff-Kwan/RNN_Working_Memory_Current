@@ -38,18 +38,17 @@ for i in range(len(w_var_arr)):
     print(f"\nTraining Model {i}/{len(w_var_arr)}...")
     # Model name
     model_name = f'W_init - Model {i+1} of {len(w_var_arr)}'
+    model = RNN(dir='Models', name=model_name)
 
     # Repeat Training for 3 times unless early sucess
     for trial in range(repeats):
         # Check if Model is already successfully trained
         try:
             with open(f'Models/{model_name}/Successful.txt', 'r') as file:
-                print(f"Model {i+1} of {len(w_var_arr)} already trained successfully")
                 continue
         except FileNotFoundError:
             # Delete Failed Model
             try:
-                model = RNN(dir='Models', name=model_name)
                 model.del_model(dir='Models', name=model_name, p=False)
             except:
                 pass
@@ -57,7 +56,6 @@ for i in range(len(w_var_arr)):
         '''~~~      Model Training    ~~~'''
 
         # Initialize the RNN model
-        model = RNN(dir='Models', name=model_name)
         model.hyp('dms', activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var_arr[i])
 
         # Train the model
