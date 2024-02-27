@@ -3,6 +3,7 @@ from time import time
 from RNN_Class import RNN
 import numpy as np
 import datetime
+import os
 
 start_time = time()
 
@@ -45,9 +46,16 @@ for i in range(len(w_var_arr)):
         # Check if Model is already successfully trained
         try:
             with open(f'Models/{model_name}/Successful.txt', 'r') as file:
+                # Delete Failed.txt if it exists
+                try:
+                    os.remove(f'Models/{model_name}/Failed.txt')
+                except FileNotFoundError:
+                    pass
                 continue
         except FileNotFoundError:
-            pass
+            # Clear all files in the directory
+            for file in os.listdir(f'Models/{model_name}'):
+                os.remove(f'Models/{model_name}/{file}')
 
 
         '''~~~      Model Training    ~~~'''
