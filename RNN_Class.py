@@ -235,7 +235,7 @@ class RNN(nn.Module):
                 best_loss = total_loss
                 best_acc = self.acc[-1]
                 self.save_model()
-                save_delay = 10
+                save_delay = 20
 
                 # Early exit
                 if self.acc[-1] == 1.0 and total_loss < 0.2:
