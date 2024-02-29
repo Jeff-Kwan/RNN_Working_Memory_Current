@@ -22,8 +22,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 '''~~~      Fixed Model Params        ~~~'''
 # Model Hyperparameters
 activation = 'relu'
-reg = 0.0001
-w_var = 0.01
+w_var = 0.001
 
 # Training Hyperparameters
 N_EPOCHS = 2500
@@ -62,7 +61,7 @@ for i in range(len(reg_arr)):
         '''~~~      Model Training    ~~~'''
 
         # Initialize the RNN model
-        model.hyp('dms', activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=reg_arr[i])
+        model.hyp('dms', activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg_arr[i], w_var=w_var)
 
         # Train the model
         model.train_model(stimuli, labels, p=False)
