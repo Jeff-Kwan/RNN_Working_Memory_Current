@@ -30,7 +30,7 @@ LEARNING_RATE = 0.003
 
 
 '''~~~      Varying Model Params        ~~~'''
-reg_arr = np.logspace(0.00001, 0.001, 50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+reg_arr = np.linspace(0.00001, 0.001, 50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 
 repeats = 3
