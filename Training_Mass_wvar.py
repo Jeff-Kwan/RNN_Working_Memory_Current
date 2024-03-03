@@ -30,10 +30,9 @@ LEARNING_RATE = 0.003
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.linspace(np.log(0.001), np.log(0.01), 50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.logspace(-3, 0, num=50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
-
-repeats = 3
+repeats = 1
 '''~~~      RNN Training        ~~~'''
 for i in range(len(w_var_arr)):
     print(f"\nTraining Model {i+1}/{len(w_var_arr)}...")
