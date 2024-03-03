@@ -131,14 +131,12 @@ class RNN(nn.Module):
 
         # Init firing rates matrix, dt/tau
         r = torch.zeros([4, self.N_cell, 1])
+        r = r.to(self.device)
         c = self.dt / self.tau
 
         # Reset Lists to record activity metrics
         self.activities = []             # r(t)
         self.drs = []                    # dr(t)
-
-        # Move to GPU 
-        self.to_gpu()
 
         # Record function
         def record_data():
@@ -196,17 +194,18 @@ class RNN(nn.Module):
         if p:
             print("Initializing model training...")
 
-        # Move to GPU
-        train_data = train_data.to(self.device)
-        train_labels = train_labels.to(self.device)
-        self.train()
-
         # Optimizer and Loss
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         loss_fn = nn.CrossEntropyLoss()
         best_loss = np.inf
         save_delay = 10
         best_acc = 0
+
+        # Move to GPU
+        train_data = train_data.to(self.device)
+        train_labels = train_labels.to(self.device)
+        optimizer = optimizer.to(self.device)
+        self.train()
 
         self.acc = []
         start_time = time()
