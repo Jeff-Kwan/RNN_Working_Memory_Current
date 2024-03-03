@@ -130,8 +130,8 @@ class RNN(nn.Module):
         x_test = x[:, 1, :].unsqueeze(2) #[4,self.N_stim,1]
 
         # Init firing rates matrix, dt/tau
-        r = torch.zeros([4, self.N_cell, 1])
-        r = r.to(self.device)
+        r = torch.zeros([4, self.N_cell, 1], device=self.device)
+        dr = torch.zeros([4, self.N_cell, 1], device=self.device)
         c = self.dt / self.tau
 
         # Reset Lists to record activity metrics
@@ -145,34 +145,34 @@ class RNN(nn.Module):
 
         # Fixation
         for t in range(self.fixation_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1]))*c # Noise
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c # Noise
             r = r + dr
             record_data()
 
         # Training on Sample Stimulus
         for t in range(self.sample_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_sample) + self.noise*torch.rand([self.N_cell,1]))*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_sample) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             record_data()
 
-        rm = torch.zeros([self.delay_len, 4, 2], dtype=float)
+        rm = torch.zeros([self.delay_len, 4, 2], dtype=float, device=self.device)
         # Delay
         for t in range(self.delay_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1]))*c # Noise
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c # Noise
             r = r + dr
             rm[t] = torch.squeeze(self.mem_weights@r, dim=-1)
             record_data()
 
         # Training on Test Stimulus
         for t in range(self.test_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_test) + self.noise*torch.rand([self.N_cell,1]))*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_test) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             record_data()
 
         # Response
-        rs = torch.zeros([self.response_len, 4, 2], dtype=float)
+        rs = torch.zeros([self.response_len, 4, 2], dtype=float, device=self.device)
         for t in range(self.response_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1]))*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             rs[t] = torch.squeeze(self.out_weights@r, dim=-1)
             record_data()
@@ -204,7 +204,6 @@ class RNN(nn.Module):
         # Move to GPU
         train_data = train_data.to(self.device)
         train_labels = train_labels.to(self.device)
-        optimizer = optimizer.to(self.device)
         self.train()
 
         self.acc = []
@@ -323,11 +322,12 @@ class RNN(nn.Module):
             output = self.forward(test_data)
 
             # The second item in output is used for evaluation
-            predictions = np.round(torch.softmax(output[1], dim=1).numpy()).astype(int)[:,0]
-            labels = test_labels[:,1,0].numpy().astype(int)
+            predictions = torch.round(torch.softmax(output[1], dim=1)).int()[:,0]
+            labels = test_labels[:,1,0].int()
 
-            # Calculate accuracy
-            accuracy = accuracy_score(labels.flatten(), predictions.flatten())
+             # Calculate accuracy
+            correct_predictions = torch.eq(predictions, labels).sum().item()
+            accuracy = correct_predictions / labels.numel()
             
             # Print results
             if p:
