@@ -137,6 +137,9 @@ class RNN(nn.Module):
         self.activities = []             # r(t)
         self.drs = []                    # dr(t)
 
+        # Move to GPU 
+        self.to_gpu()
+
         # Record function
         def record_data():
             self.activities.append(r.clone())
