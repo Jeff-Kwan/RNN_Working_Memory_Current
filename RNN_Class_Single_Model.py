@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
 import os, shutil
 from time import time
@@ -37,22 +38,19 @@ class RNN(nn.Module):
 
     def hyp(self, task='dms', activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
         '''Set hyperparameters'''
-        # Model parameters
         self.N_cell = N_CELL
         self.N_stim = N_STIM
         self.w_var = w_var
         w_std = np.sqrt(w_var)
-        N_Models = 1
-        self.N_Models = N_Models
 
         # Recurrent parameters
-        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).uniform_(-0.01,0.01))
-        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).uniform_(-0.01,0.01))
+        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_CELL).uniform_(-0.01,0.01))
+        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_CELL, 1).uniform_(-0.01,0.01))
 
         # Input and output weights
-        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_STIM).uniform_(-w_std,w_std))
-        self.out_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).uniform_(-0.01,0.01))
-        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).uniform_(-0.01,0.01))
+        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_CELL, N_STIM).uniform_(-w_std,w_std))
+        self.out_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
+        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(2, N_CELL).uniform_(-0.01,0.01))
 
         # Hyperparameters
         self.activation = activation
@@ -130,12 +128,10 @@ class RNN(nn.Module):
         assert x.shape == (4, 2, self.N_stim), "Wrong input dimensions."
         x_sample = x[:, 0, :].unsqueeze(2) #[4,self.N_stim,1]
         x_test = x[:, 1, :].unsqueeze(2) #[4,self.N_stim,1]
-        x_sample = torch.unsqueeze(x_sample, dim=1).repeat(1, self.N_Models, 1, 1)
-        x_test = torch.unsqueeze(x_test, dim=1).repeat(1, self.N_Models, 1, 1)
 
         # Init firing rates matrix, dt/tau
-        r = torch.zeros([4, self.N_Models, self.N_cell, 1], device=self.device)
-        dr = torch.zeros([4, self.N_Models, self.N_cell, 1], device=self.device)
+        r = torch.zeros([4, self.N_cell, 1], device=self.device)
+        dr = torch.zeros([4, self.N_cell, 1], device=self.device)
         c = self.dt / self.tau
 
         # Reset Lists to record activity metrics
@@ -147,39 +143,36 @@ class RNN(nn.Module):
             self.activities.append(r.clone())
             self.drs.append(dr.clone())
 
-        def noise():
-            return self.noise*torch.rand([self.N_Models, self.N_cell,1], device=self.device)
-
         # Fixation
         for t in range(self.fixation_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + noise())*c # Noise
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c # Noise
             r = r + dr
             record_data()
 
         # Training on Sample Stimulus
         for t in range(self.sample_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_sample) + noise())*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_sample) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             record_data()
 
-        rm = torch.zeros([self.delay_len, 4, self.N_Models, 2], dtype=float, device=self.device)
+        rm = torch.zeros([self.delay_len, 4, 2], dtype=float, device=self.device)
         # Delay
         for t in range(self.delay_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + noise())*c # Noise
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c # Noise
             r = r + dr
             rm[t] = torch.squeeze(self.mem_weights@r, dim=-1)
             record_data()
 
         # Training on Test Stimulus
         for t in range(self.test_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_test) + noise())*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases + self.inp_weights@x_test) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             record_data()
 
         # Response
-        rs = torch.zeros([self.response_len, 4, self.N_Models, 2], dtype=float, device=self.device)
+        rs = torch.zeros([self.response_len, 4, 2], dtype=float, device=self.device)
         for t in range(self.response_len):
-            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + noise())*c
+            dr = (-r + self.phi(self.rec_weights@r + self.rec_biases) + self.noise*torch.rand([self.N_cell,1], device=self.device))*c
             r = r + dr
             rs[t] = torch.squeeze(self.out_weights@r, dim=-1)
             record_data()
@@ -211,7 +204,6 @@ class RNN(nn.Module):
         # Move to GPU
         train_data = train_data.to(self.device)
         train_labels = train_labels.to(self.device)
-        train_labels = torch.unsqueeze(train_labels.transpose(0,1), dim=-1).repeat(1, 1, 1, self.N_Models)
         self.train()
 
         self.acc = []
@@ -220,12 +212,12 @@ class RNN(nn.Module):
             total_loss = 0
 
             # Randomize the task epochs
-            self.dms_task_epochs(rand=False)#True)
+            self.dms_task_epochs(rand=True)
 
             optimizer.zero_grad()
-            output = self.forward(train_data).transpose(2,3)
-            loss_mem = loss_fn(output[0], train_labels[0])
-            loss_pred = loss_fn(output[1], train_labels[1])
+            output = self.forward(train_data)
+            loss_mem = loss_fn(output[0], train_labels[:,0,:])
+            loss_pred = loss_fn(output[1], train_labels[:,1,:])
             loss = loss_mem + loss_pred
             loss += self.reg_hyp*torch.sum(self.activities ** 2)
             loss.backward()
@@ -233,7 +225,7 @@ class RNN(nn.Module):
             total_loss = loss.item()
 
             self.training_losses.append(total_loss)
-            self.acc.append(torch.max(self.test(train_data, train_labels, p=False)))
+            self.acc.append(self.test(train_data, train_labels, p=False))
             save_delay -= 1
 
             # Progress bar
@@ -243,7 +235,7 @@ class RNN(nn.Module):
             if (total_loss<best_loss) and (save_delay<0) and (self.acc[-1]>=best_acc):
                 best_loss = total_loss
                 best_acc = self.acc[-1]
-                #self.save_model()
+                self.save_model()
                 save_delay = 20
 
                 # Early exit
@@ -324,28 +316,26 @@ class RNN(nn.Module):
 
     def test(self, test_data, test_labels, p=True):
         """Test the model and print accuracy and confusion matrix."""
-        if test_labels.shape == (4, 2, 2):
-            torch.unsqueeze(test_labels.permute(2, 0, 1), dim=-1).repeat(1, 1, 1, self.N_Models)
         self.eval()
         with torch.no_grad():
             # Forward pass
             output = self.forward(test_data)
 
             # The second item in output is used for evaluation
-            predictions = torch.squeeze(torch.round(torch.softmax(output[1], dim=1))[:,:,0])
-            labels = torch.squeeze(test_labels[1,:,1,:])
+            predictions = torch.round(torch.softmax(output[1], dim=1)).int()[:,0]
+            labels = test_labels[:,1,0].int()
 
-            # Calculate accuracy
-            correct_predictions = torch.eq(predictions.int(), labels.int()).sum(dim=0)
-            accuracy = correct_predictions / labels.shape[0]            
-
+             # Calculate accuracy
+            correct_predictions = torch.eq(predictions, labels).sum().item()
+            accuracy = correct_predictions / labels.numel()
+            
             # Print results
             if p:
-                print(f"Average accuracy: {torch.round(torch.mean(accuracy) * 100).item()}%")
-                print("Correct Label | Average Predicted Label")
-                print("--------------|------------------------")
+                print(f"Accuracy: {accuracy * 100:.2f}%")
+                print("Correct Label | Predicted Label")
+                print("--------------|----------------")
                 for i in range(4):
-                    print(f"{int(torch.mean(labels[i]).item())}             | {torch.mean(predictions[i]).item()}")
+                    print(f"{labels[i]}             | {predictions[i]}")
         return accuracy
 
 
@@ -356,14 +346,14 @@ class RNN(nn.Module):
         fig, ax1 = plt.subplots()
         ax1.plot(np.arange(len(self.training_losses)), self.training_losses, 'b-')
         ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("Total Loss", color='b')
+        ax1.set_ylabel("Loss", color='b')
         ax1.tick_params('y', colors='b')
         ax1.set_yscale('log')  # Set y-axis to log scale
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
-        ax2.set_ylabel("Best Accuracy", color='orange')
+        ax2.set_ylabel("Accuracy", color='orange')
         ax2.tick_params('y', colors='orange')
-        plt.title("Total training loss and best accuracy over epochs")
+        plt.title("Training Loss and Accuracy over Epochs")
         plt.tight_layout()
         plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"))
         plt.close()

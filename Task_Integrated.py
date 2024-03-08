@@ -7,16 +7,16 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Model_2'
+model_name = 'Model_Multiple'
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 0.00001
-w_var = 0.01         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+reg = 1e-5
+w_var = 0.001         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 # Training Hyperparameters
 N_EPOCHS = 2000
-LEARNING_RATE = 0.003
+LEARNING_RATE = 0.0001
 
 
 '''~~~      DMS Task            ~~~'''

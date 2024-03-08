@@ -5,7 +5,7 @@ from RNN_Class import RNN
 start_time = time()
 
 # Load Model
-model_name = 'Model_1'
+model_name = 'Model_Multiple'
 model = RNN('Models', model_name)
 
 # DMS Data & Run Model
