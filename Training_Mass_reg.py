@@ -33,7 +33,7 @@ LEARNING_RATE = 0.003
 reg_arr = np.linspace(0.00001, 0.001, 50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 
-repeats = 3
+repeats = 1
 '''~~~      RNN Training        ~~~'''
 for i in range(len(reg_arr)):
     print(f"\nTraining Model {i+1}/{len(reg_arr)}...")
