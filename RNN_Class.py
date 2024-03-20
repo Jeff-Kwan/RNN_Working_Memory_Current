@@ -309,7 +309,8 @@ class RNN(nn.Module):
         ax1.set_xlabel("Epoch")
         ax1.set_ylabel("Total Loss", color='b')
         ax1.tick_params('y', colors='b')
-        ax1.set_yscale('log')  # Set y-axis to log scale
+        #ax1.set_yscale('log')  # Set y-axis to log scale
+        ax1.set_ylim(0, 1.5)
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
         ax2.set_ylabel("Average Accuracy", color='orange')
