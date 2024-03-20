@@ -25,7 +25,7 @@ activation = 'relu'
 reg = 1e-4
 
 # Training Hyperparameters
-N_EPOCHS = 3000
+N_EPOCHS = 2000
 LEARNING_RATE = 0.002
 N_MODELS = 100
 
