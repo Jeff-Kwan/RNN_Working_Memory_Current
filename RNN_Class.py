@@ -569,7 +569,8 @@ class RNN(nn.Module):
 
     '''Utility Functions'''
     def to_gpu(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # At this training scale CPU > GPU
+        device = 'cpu'#torch.device("cuda" if torch.cuda.is_available() else "cpu")
         for name, param in self.named_parameters():
             param.data = param.data.to(device)
         for name, buffer in self.named_buffers():
