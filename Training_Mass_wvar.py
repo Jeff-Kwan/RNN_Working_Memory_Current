@@ -72,7 +72,7 @@ for i in range(len(w_var_arr)):
 
         # Test Model
         accuracy = model.test(stimuli, labels, p=False)
-        with open(f'Models/wvar/{model_name}/{"Successful" if accuracy == 1.0 else "Failed"}.txt', 'w') as file:
+        with open(f'Models/wvar/{model_name}/{"Successful" if torch.count_nonzero(accuracy == 1)/len(accuracy)>0.8 else "Failed"}.txt', 'w') as file:
             file.write(f"Description: \n{model.description}")
             
         # Model Evaluation

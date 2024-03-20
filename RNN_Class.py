@@ -212,7 +212,7 @@ class RNN(nn.Module):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         loss_fn = nn.CrossEntropyLoss()
         best_loss = np.inf
-        save_delay = 10
+        save_delay = 20
 
         # Move to GPU
         train_data = train_data.to(self.device)
