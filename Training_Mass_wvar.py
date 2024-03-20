@@ -22,11 +22,12 @@ labels = torch.tensor([[[0,1], [1,0]],
 '''~~~      Fixed Model Params        ~~~'''
 # Model Hyperparameters
 activation = 'relu'
-reg = 0.0001
+reg = 1e-4
 
 # Training Hyperparameters
-N_EPOCHS = 2500
-LEARNING_RATE = 0.003
+N_EPOCHS = 3000
+LEARNING_RATE = 0.002
+N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
@@ -60,7 +61,7 @@ for i in range(len(w_var_arr)):
         '''~~~      Model Training    ~~~'''
 
         # Initialize the RNN model
-        model.hyp('dms', activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var_arr[i])
+        model.hyp('dms', N_Models=N_MODELS, activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var_arr[i])
 
         # Train the model
         model.train_model(stimuli, labels, p=False)
@@ -76,12 +77,16 @@ for i in range(len(w_var_arr)):
             
         # Model Evaluation
         model.eval()
+        # Test Model
+        acc = model.test(stimuli, labels)
+        indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
+        indices = indices[[0, -1]]
         model.forward(stimuli)
 
         # Analysis
-        model.plot_pca_trajectories_2D(stimuli, f"Trajectories in PC1-PC2 space for DMS task stages")
-        model.plot_abs_activity(stimuli)
-        model.plot_drs(stimuli)
+        model.plot_pca_trajectories_2D(indices, stimuli)
+        model.plot_abs_activity(indices, stimuli)
+        model.plot_drs(indices, stimuli)
 
         # Time Analysis
         time_elapsed = time() - start_time

@@ -35,14 +35,13 @@ class RNN(nn.Module):
                     print(f"Directory {name} exists but no model found. Proceeding with new model?")
 
 
-    def hyp(self, task='dms', activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
+    def hyp(self, task='dms', N_Models=1, activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
         '''Set hyperparameters'''
         # Model parameters
         self.N_cell = N_CELL
         self.N_stim = N_STIM
         self.w_var = w_var
         w_std = np.sqrt(w_var)
-        N_Models = 1
         self.N_Models = N_Models
 
         # Recurrent parameters
@@ -103,16 +102,26 @@ class RNN(nn.Module):
         else:
             return time
 
-    def phi(self, r):
+    def phi(self, r, t=True):
         '''Activation function selection'''
-        if self.activation == 'relu':
-            return torch.relu(r)
-        elif self.activation == 'tanh':
-            return torch.tanh(r)
-        elif self.activation == 'ssn':
-            return (torch.relu(r))**2
+        if t:
+            if self.activation == 'relu':
+                return torch.relu(r)
+            elif self.activation == 'tanh':
+                return torch.tanh(r)
+            elif self.activation == 'ssn':
+                return (torch.relu(r))**2
+            else:
+                raise ValueError(f"Unknown activation function: {self.activation}")
         else:
-            raise ValueError(f"Unknown activation function: {self.activation}")
+            if self.activation == 'relu':
+                return np.maximum(0, r)
+            elif self.activation == 'tanh':
+                return np.tanh(r)
+            elif self.activation == 'ssn':
+                return (np.maximum(0, r))**2
+            else:
+                raise ValueError(f"Unknown activation function: {self.activation}")
 
 
     def forward(self, x):
@@ -124,14 +133,12 @@ class RNN(nn.Module):
             raise ValueError("Task not defined.")
 
     def forward_dms(self, x):
-        '''Forward pass for delayed match to sample task with a residual network.
+        '''Forward pass for delayed match to sample task.
         Expected input x to be of dimensions: [2, N_stim]'''
         # Check input dimensions, Extract sample and test stimuli
         assert x.shape == (4, 2, self.N_stim), "Wrong input dimensions."
-        x_sample = x[:, 0, :].unsqueeze(2) #[4,self.N_stim,1]
-        x_test = x[:, 1, :].unsqueeze(2) #[4,self.N_stim,1]
-        x_sample = torch.unsqueeze(x_sample, dim=1).repeat(1, self.N_Models, 1, 1)
-        x_test = torch.unsqueeze(x_test, dim=1).repeat(1, self.N_Models, 1, 1)
+        x_sample = x[:, 0, :].unsqueeze(-1).unsqueeze(1) #[4, 1, self.N_stim,1]
+        x_test = x[:, 1, :].unsqueeze(-1).unsqueeze(1) #[4, 1, self.N_stim,1]
 
         # Init firing rates matrix, dt/tau
         r = torch.zeros([4, self.N_Models, self.N_cell, 1], device=self.device)
@@ -187,7 +194,7 @@ class RNN(nn.Module):
 
         # Average response over time is returned
         # Output 
-        output = torch.stack([torch.mean(rm, 0), torch.mean(rs, 0)])
+        output = torch.stack([torch.mean(rm[self.delay_len//2:], 0), torch.mean(rs, 0)])
         self.activities = torch.squeeze(torch.stack(self.activities))
         self.drs = torch.squeeze(torch.stack(self.drs))
 
@@ -206,7 +213,6 @@ class RNN(nn.Module):
         loss_fn = nn.CrossEntropyLoss()
         best_loss = np.inf
         save_delay = 10
-        best_acc = 0
 
         # Move to GPU
         train_data = train_data.to(self.device)
@@ -217,38 +223,35 @@ class RNN(nn.Module):
         self.acc = []
         start_time = time()
         for epoch in range(self.num_epochs):
-            total_loss = 0
-
             # Randomize the task epochs
             self.dms_task_epochs(rand=False)#True)
 
             optimizer.zero_grad()
             output = self.forward(train_data).transpose(2,3)
-            loss_mem = loss_fn(output[0], train_labels[0])
-            loss_pred = loss_fn(output[1], train_labels[1])
+            loss_mem = loss_fn(output[0].transpose(0,2), train_labels[0].transpose(0,2))
+            loss_pred = loss_fn(output[1].transpose(0,2), train_labels[1].transpose(0,2))
             loss = loss_mem + loss_pred
-            loss += self.reg_hyp*torch.sum(self.activities ** 2)
+            loss = loss + self.reg_hyp*torch.mean(self.activities ** 2)
             loss.backward()
             optimizer.step()
             total_loss = loss.item()
 
             self.training_losses.append(total_loss)
-            self.acc.append(torch.max(self.test(train_data, train_labels, p=False)))
+            self.acc.append(torch.mean(self.test(train_data, train_labels, p=False)))
             save_delay -= 1
 
             # Progress bar
             progress_bar(self.num_epochs, epoch, start_time, f"Total: {total_loss:.4f} Mem: {loss_mem.item():.4f} Task:{loss_pred.item():.4f}")
 
             # Save Better Models (with delay)
-            if (total_loss<best_loss) and (save_delay<0) and (self.acc[-1]>=best_acc):
+            if (total_loss<best_loss) and (save_delay<0):
                 best_loss = total_loss
-                best_acc = self.acc[-1]
-                #self.save_model()
+                self.save_model()
                 save_delay = 20
 
                 # Early exit
-                if self.acc[-1] == 1.0 and total_loss < 0.2:
-                    break
+                # if self.acc[-1] == 1.0 and total_loss < 0.2:
+                #     break
 
         # Reset task epochs
         self.dms_task_epochs(rand=False)
@@ -257,97 +260,45 @@ class RNN(nn.Module):
             print('\nTraining Complete. \n')
 
 
-    def pca(self):
-        '''Performs PCA on the activities, assumes forward pass is completed'''
-        # Concatenate activities along different stimuli iterations
-        activities = np.concatenate([self.activities[:, i, :].detach().numpy() 
-                                     for i in range(self.activities.shape[1])], axis=0)
-        # PCA
-        pca = PCA()
-        principalComponents = pca.fit_transform(activities)
-
-        return principalComponents
-
-
-    def plot_pca_trajectories_2D(self, stimuli, title):
-        '''Assumes 2D DMS task'''
-        # PCA
-        principalComponents = self.pca()
-
-        # Create figure with 4 rows and 5 columns
-        fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
-        fig.suptitle(f"Trajectories in PC1-PC2 space for {title} task stages", fontsize=16)
-
-        # Plotting parameters
-        stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
-        splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
-        cumulative_splits = np.cumsum(splits)
-        div = np.cumsum([0] + [len(a) for a in [self.activities[:,0,:], self.activities[:,1,:],
-                                                self.activities[:,2,:], self.activities[:,3,:]]])
-        
-        # Compute global min and max for axes limits
-        pc1_min, pc1_max = np.min(principalComponents[:, 0]), np.max(principalComponents[:, 0])
-        pc2_min, pc2_max = np.min(principalComponents[:, 1]), np.max(principalComponents[:, 1])
-
-        # Task titles
-        tasks = self.stim_AB(stimuli)
-
-        for trial in range(4):
-            start = div[trial]
-            end = div[trial + 1]
-            trial_pc = principalComponents[start:end]
-
-            for idx, stage in enumerate(stages):
-                ax = axes[trial, idx]
-                stage_start = cumulative_splits[idx]
-                stage_end = cumulative_splits[idx+1]
-                ax.plot(trial_pc[stage_start:stage_end, 0], trial_pc[stage_start:stage_end, 1])
-                ax.set_xlim(pc1_min, pc1_max)
-                ax.set_ylim(pc2_min, pc2_max)
-                ax.set_title(stage if trial == 0 else "")
-                ax.scatter(trial_pc[stage_start, 0], trial_pc[stage_start, 1], color='green', label='Start', s=50, marker='o')
-                ax.scatter(trial_pc[stage_end-1, 0], trial_pc[stage_end-1, 1], color='red', label='End', s=50, marker='x')
-
-            # Set stimulus labels
-            axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
-
-        # Set common labels
-        fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
-        fig.text(0.02, 0.5, 'PC2', va='center', rotation='vertical', fontsize=15)
-
-        # Add legend
-        handles, labels = axes[0, -1].get_legend_handles_labels()
-        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
-
-        plt.savefig(os.path.join(self.dir, f"{self.name}_pca_trajectories.png"))
-
-
     def test(self, test_data, test_labels, p=True):
         """Test the model and print accuracy and confusion matrix."""
-        if test_labels.shape == (4, 2, 2):
-            torch.unsqueeze(test_labels.permute(2, 0, 1), dim=-1).repeat(1, 1, 1, self.N_Models)
+        if test_labels.shape == torch.Size([4, 2, 2]):
+            test_labels = torch.unsqueeze(test_labels.transpose(0,1), dim=-1).repeat(1, 1, 1, self.N_Models)
         self.eval()
         with torch.no_grad():
             # Forward pass
             output = self.forward(test_data)
 
             # The second item in output is used for evaluation
-            predictions = torch.squeeze(torch.round(torch.softmax(output[1], dim=1))[:,:,0])
-            labels = torch.squeeze(test_labels[1,:,1,:])
+            predictions = torch.squeeze(torch.round(torch.softmax(output[1], dim=-1))[:,:,0])
+            labels = torch.squeeze(test_labels[1,:,0,:])
 
             # Calculate accuracy
             correct_predictions = torch.eq(predictions.int(), labels.int()).sum(dim=0)
             accuracy = correct_predictions / labels.shape[0]            
 
             # Print results
+            labels = [1,0,0,1]
             if p:
+                print(f'Successfully trained models = {torch.count_nonzero(accuracy == 1)}/{len(accuracy)}')
                 print(f"Average accuracy: {torch.round(torch.mean(accuracy) * 100).item()}%")
                 print("Correct Label | Average Predicted Label")
                 print("--------------|------------------------")
                 for i in range(4):
-                    print(f"{int(torch.mean(labels[i]).item())}             | {torch.mean(predictions[i]).item()}")
+                    print(f"{int(labels[i])}             | {torch.mean(predictions[i]).item()}")
         return accuracy
 
+
+    def pca(self, activities):
+        '''Performs PCA on the activities, assumes forward pass is completed'''
+        # Concatenate activities along different stimuli iterations
+        activities = np.concatenate([activities[:, i, :].detach().numpy() 
+                                     for i in range(activities.shape[1])], axis=0)
+        # PCA
+        pca = PCA()
+        principalComponents = pca.fit_transform(activities)
+
+        return principalComponents
 
 
 
@@ -361,7 +312,7 @@ class RNN(nn.Module):
         ax1.set_yscale('log')  # Set y-axis to log scale
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
-        ax2.set_ylabel("Best Accuracy", color='orange')
+        ax2.set_ylabel("Average Accuracy", color='orange')
         ax2.tick_params('y', colors='orange')
         plt.title("Total training loss and best accuracy over epochs")
         plt.tight_layout()
@@ -369,108 +320,248 @@ class RNN(nn.Module):
         plt.close()
 
 
-    def plot_abs_activity(self, stimuli):
+    def plot_pca_trajectories_2D(self, inds, stimuli):
+        '''Assumes 2D DMS task'''
+        for ind in inds:
+            # Activities [Time, 4, N_Models, N_cell]
+            if self.N_Models > 1:
+                activities = torch.squeeze(self.activities[:, :, ind, :])
+            else:
+                activities = self.activities
+
+            # PCA
+            principalComponents = self.pca(activities)
+
+            # Create figure with 4 rows and 5 columns
+            fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
+            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
+
+            # Plotting parameters
+            stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
+            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
+            cumulative_splits = np.cumsum(splits)
+            div = np.cumsum([0] + [len(a) for a in [activities[:,0,:], activities[:,1,:],
+                                                    activities[:,2,:], activities[:,3,:]]])
+            
+            # Compute global min and max for axes limits
+            pc1_min, pc1_max = np.min(principalComponents[:, 0]), np.max(principalComponents[:, 0])
+            pc2_min, pc2_max = np.min(principalComponents[:, 1]), np.max(principalComponents[:, 1])
+
+            # Task titles
+            tasks = self.stim_AB(stimuli)
+
+            for trial in range(4):
+                start = div[trial]
+                end = div[trial + 1]
+                trial_pc = principalComponents[start:end]
+
+                for idx, stage in enumerate(stages):
+                    ax = axes[trial, idx]
+                    stage_start = cumulative_splits[idx]
+                    stage_end = cumulative_splits[idx+1]
+                    ax.plot(trial_pc[stage_start:stage_end, 0], trial_pc[stage_start:stage_end, 1])
+                    ax.set_xlim(pc1_min, pc1_max)
+                    ax.set_ylim(pc2_min, pc2_max)
+                    ax.set_title(stage if trial == 0 else "")
+                    ax.scatter(trial_pc[stage_start, 0], trial_pc[stage_start, 1], color='green', label='Start', s=50, marker='o')
+                    ax.scatter(trial_pc[stage_end-1, 0], trial_pc[stage_end-1, 1], color='red', label='End', s=50, marker='x')
+
+                # Set stimulus labels
+                axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
+
+            # Set common labels
+            fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
+            fig.text(0.02, 0.5, 'PC2', va='center', rotation='vertical', fontsize=15)
+
+            # Add legend
+            handles, labels = axes[0, -1].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
+
+            plt.savefig(os.path.join(self.dir, f"{self.name}_pca_trajectories_model_{ind}.png"))
+            plt.close()
+
+
+    def plot_abs_activity(self, inds, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
-        # Compute the absolute value of the activities
-        abs_activities = torch.abs(self.activities).detach().numpy()
+        for ind in inds:
+            # Activities [Time, 4, N_Models, N_cell]
+            if self.N_Models > 1:
+                activities = torch.squeeze(self.activities[:, :, ind, :])
+            else:
+                activities = self.activities
 
-        # Define the splits
-        splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
-        cumulative_splits = np.cumsum(splits)
+            # Compute the absolute value of the activities
+            abs_activities = torch.abs(activities).detach().numpy()
 
-        # Create a 2x2 grid of subplots
-        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-        fig.suptitle('Absolute Neural Activities Across Time', fontsize=16)
-        fig.subplots_adjust(hspace=0.4, wspace=0.2)
-        stim = self.stim_AB(stimuli)
+            # Define the splits
+            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
+            cumulative_splits = np.cumsum(splits)
 
-        # Plot the absolute activities for each task
-        for task in range(abs_activities.shape[1]):
-            ax = axs[task // 2, task % 2]  # Select the subplot
-            for neuron in range(abs_activities.shape[2]):
-                ax.plot(abs_activities[:, task, neuron], label=f"Neuron {neuron}")
-            ax.set_title(f'Combination {stim[task]}', fontsize=14)
-            ax.set_xlabel('Time', fontsize=14)
-            ax.set_ylabel('Absolute Activity', fontsize=14)
+            # Create a 2x2 grid of subplots
+            fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+            fig.suptitle(f'Absolute Neural Activities Across Time Model {ind}', fontsize=16)
+            fig.subplots_adjust(hspace=0.4, wspace=0.2)
+            stim = self.stim_AB(stimuli)
 
-            # Add vertical lines to split the task stages
-            for split in cumulative_splits:
-                ax.axvline(x=split, color='lightgrey', linestyle='--')
+            # Plot the absolute activities for each task
+            for task in range(abs_activities.shape[1]):
+                ax = axs[task // 2, task % 2]  # Select the subplot
+                for neuron in range(abs_activities.shape[2]):
+                    ax.plot(abs_activities[:, task, neuron], label=f"Neuron {neuron}")
+                ax.set_title(f'Combination {stim[task]}', fontsize=14)
+                ax.set_xlabel('Time', fontsize=14)
+                ax.set_ylabel('Absolute Activity', fontsize=14)
 
-        # Create a custom legend
-        lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
-        fig.legend(handles=lines, loc='lower right')
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_abs_activities.png"))
-        plt.close()
+                # Add vertical lines to split the task stages
+                for split in cumulative_splits:
+                    ax.axvline(x=split, color='lightgrey', linestyle='--')
+
+            # Create a custom legend
+            lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
+            fig.legend(handles=lines, loc='lower right')
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.dir, f"{self.name}_abs_activities_model_{ind}.png"))
+            plt.close()
 
 
-    def plot_drs(self, stimuli):
+    def plot_drs(self, inds, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
-        # Compute the absolute value of the activities
-        drs = self.drs.detach().numpy()
+        for ind in inds:
+            if self.N_Models > 1:
+                drs = torch.squeeze(self.drs[:, :, ind, :])
+            else:
+                drs = self.drs
 
-        # Define the splits
-        splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
-        cumulative_splits = np.cumsum(splits)
+            # Compute the absolute value of the activities
+            drs = drs.detach().numpy()
 
-        # Create a 2x2 grid of subplots
-        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-        fig.suptitle('Neural Activity Gradients Across Time', fontsize=16)
-        fig.subplots_adjust(hspace=0.4, wspace=0.2)
-        stim = self.stim_AB(stimuli)
+            # Define the splits
+            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
+            cumulative_splits = np.cumsum(splits)
 
-        # Plot the absolute activities for each task
-        for task in range(drs.shape[1]):
-            ax = axs[task // 2, task % 2]  # Select the subplot
-            for neuron in range(drs.shape[2]):
-                ax.plot(drs[:, task, neuron], label=f"Neuron {neuron}")
-            ax.set_title(f'Combination {stim[task]}', fontsize=14)
-            ax.set_xlabel('Time', fontsize=14)
-            ax.set_ylabel('Neural Activity Gradients', fontsize=14)
+            # Create a 2x2 grid of subplots
+            fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+            fig.suptitle(f'Neural Activity Gradients Across Time Model {ind}', fontsize=16)
+            fig.subplots_adjust(hspace=0.4, wspace=0.2)
+            stim = self.stim_AB(stimuli)
 
-            # Add vertical lines to split the task stages
-            for split in cumulative_splits:
-                ax.axvline(x=split, color='lightgrey', linestyle='--')
+            # Plot the absolute activities for each task
+            for task in range(drs.shape[1]):
+                ax = axs[task // 2, task % 2]  # Select the subplot
+                for neuron in range(drs.shape[2]):
+                    ax.plot(drs[:, task, neuron], label=f"Neuron {neuron}")
+                ax.set_title(f'Combination {stim[task]}', fontsize=14)
+                ax.set_xlabel('Time', fontsize=14)
+                ax.set_ylabel('Neural Activity Gradients', fontsize=14)
 
-        # Create a custom legend
-        lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
-        fig.legend(handles=lines, loc='lower right')
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_drs.png"))
-        plt.close()
+                # Add vertical lines to split the task stages
+                for split in cumulative_splits:
+                    ax.axvline(x=split, color='lightgrey', linestyle='--')
+
+            # Create a custom legend
+            lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
+            fig.legend(handles=lines, loc='lower right')
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.dir, f"{self.name}_drs_model_{ind}.png"))
+            plt.close()
 
 
-    def plot_gradient_field(self):
+    def plot_gradient_field(self, inds):
         """Plot the gradient field of the neural activity in PC1-PC2 space."""
-        # PCA
-        principalComponents = self.pca()
-        pc1 = principalComponents[:, 0]
-        pc2 = principalComponents[:, 1]
+        for ind in inds:
+            print(ind)
+            if self.N_Models > 1:
+                activities = torch.squeeze(self.activities[:, :, ind, :])
+            else:
+                activities = self.activities
+            # PCA
+            principalComponents = self.pca(activities)
+            pc1 = principalComponents[:, 0]
+            pc2 = principalComponents[:, 1]
 
-        # Compute the gradient of r in the PC1-PC2 space
-        dr_dt = np.gradient(self.activities.detach().numpy(), axis=0)
+            # Compute the gradient of r in the PC1-PC2 space
+            dr_dt = np.gradient(self.activities.detach().numpy(), axis=0)
 
-        # Project the gradient onto the PC1-PC2 space
-        dr_dt_pc1 = np.dot(dr_dt, pc1)
-        dr_dt_pc2 = np.dot(dr_dt, pc2)
+            # Project the gradient onto the PC1-PC2 space
+            dr_dt_pc1 = np.dot(dr_dt, pc1)
+            dr_dt_pc2 = np.dot(dr_dt, pc2)
 
-        # Compute the magnitude of the gradient
-        magnitude = np.sqrt(dr_dt_pc1**2 + dr_dt_pc2**2)
+            # Compute the magnitude of the gradient
+            magnitude = np.sqrt(dr_dt_pc1**2 + dr_dt_pc2**2)
 
-        # Plot the gradient field
-        plt.figure()
-        plt.quiver(pc1, pc2, dr_dt_pc1, dr_dt_pc2, magnitude, cmap='viridis')
-        plt.colorbar(label='dr/dt')
-        plt.xlabel('PC1')
-        plt.ylabel('PC2')
-        plt.title('Gradient field of neural activity in PC1-PC2 space')
-        plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_field.png"))
-        plt.close()
+            # Plot the gradient field
+            plt.figure()
+            plt.quiver(pc1, pc2, dr_dt_pc1, dr_dt_pc2, magnitude, cmap='viridis')
+            plt.colorbar(label='dr/dt')
+            plt.xlabel('PC1')
+            plt.ylabel('PC2')
+            plt.title('Gradient field of neural activity in PC1-PC2 space')
+            plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_field.png"))
+            plt.close()
 
 
-    def plot_gradient_flow(self):
-        pass
+    def plot_gradient_flow(self, inds, stimuli):
+        for ind in inds:
+            if self.N_Models > 1:
+                activities = torch.squeeze(self.activities[:, :, ind, :]).detach().numpy() 
+            else:
+                activities = self.activities.detach().numpy() 
+
+            # Weights and constants
+            c = self.dt / self.tau
+            W = self.rec_weights.cpu().detach().numpy()
+            b = self.rec_biases.cpu().detach().numpy()
+            Win = self.inp_weights.cpu().detach().numpy()
+            hbef = stimuli[:, 0, :].unsqueeze(-1).unsqueeze(1).cpu().detach().numpy()
+
+            # PCA
+            uall = np.concatenate([activities[:, i, :]
+                                     for i in range(activities.shape[1])], axis=0)
+            pca = PCA()
+            pcspace = pca.fit_transform(uall)
+            v = pca.components_
+            vinv = np.linalg.inv(v)
+            pcmean = np.mean(pcspace, axis=0)
+
+            ubase = np.zeros([10])
+            for pc in range(2,10):
+                ubase += pcmean[pc] * v[:,pc]
+
+            # Compute global min and max for axes limits
+            pc1_min, pc1_max = np.min(pcspace[:, 0]), np.max(pcspace[:, 0])
+            pc2_min, pc2_max = np.min(pcspace[:, 1]), np.max(pcspace[:, 1])
+
+            pc1axis = np.linspace(pc1_min,pc1_max,100)
+            pc2axis = np.linspace(pc2_min,pc2_min,100)
+
+            absgradplot = np.zeros([4,100,100])
+            alldirections = np.zeros([4,100,100,2])
+            for i in range(100):
+                for j in range(100):
+
+                    pc1 = pc1axis[i]
+                    pc2 = pc2axis[j]
+
+                    u = 0*ubase + pc1*v[:,0] + pc2*v[:,1]
+                    u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
+
+                    dudt = c * (-u + self.phi(W@u + b, t=False)+ Win@hbef)
+
+                    directions = np.squeeze(vinv@dudt)
+                    directions = directions[:,:2,0]
+                    directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
+                    alldirections[:,i,j] = directions
+                    absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
+                    absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
+
+            fig,ax = plt.subplots(2,2)
+            cs = ['red', 'blue', 'green', 'purple']
+            for i in range(4):
+                ax[i//2, i%2].imshow(np.flipud(absgradplot[i].T),extent=[pc1_min,pc1_max,pc2_min,pc2_max], aspect='auto')
+                ax[i//2, i%2].plot(pcspace[len(uall)//4*i+50:len(uall)//4*(i+1),0],pcspace[len(uall)//4*i+50:len(uall)//4*(i+1),1],c=cs[i])
+                ax[i//2, i%2].quiver(pc1axis[::10],pc2axis[::10],alldirections[i,::10,::10,0],alldirections[i,::10,::10,1])
+            plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_flow_model_{ind}.png"))
+            plt.close()
 
 
 
@@ -485,13 +576,12 @@ class RNN(nn.Module):
         self.device = device
         #print(f'Running on {device}')
 
-
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
         description = (
         f'{self.w_var}_wvar / {self.reg_hyp}_reg / {self.activation}_activation / '
         f'{self.num_epochs}_epochs / {self.learning_rate}_rate / {self.N_stim}D_DMS / '
-        f'{self.N_cell}_cells / \n@ {len(self.training_losses)}/{self.num_epochs} '
+        f'{self.N_cell}_cells / {self.N_Models}_models / \n@ {len(self.training_losses)}/{self.num_epochs} '
         f'training steps, loss = {self.training_losses[-1]}')
         torch.save({
             'model_state_dict': self.state_dict(),
@@ -501,7 +591,7 @@ class RNN(nn.Module):
 
     def load_model(self, name, p=False):
         """Load the model's state_dict and a description from the specified path.
-           Load n_cell, activation, n_stim."""
+           Load n_cell, activation, n_stim, and N_Models."""
         checkpoint = torch.load(os.path.join(self.dir, f'{name}.pt'))
         self.description = checkpoint.get('description', '')
         if p:
@@ -510,14 +600,15 @@ class RNN(nn.Module):
             print(f"Description: \n{self.description}\n")
         parts = self.description.split('/')
         parts = [part.strip() for part in parts]
-        self.w_var = float(parts[0].split('_')[0])
-        self.reg_hyp = float(parts[1].split('_')[0])
-        self.activation = parts[2].split('_')[0]
-        self.num_epochs = int(parts[3].split('_')[0])
-        self.learning_rate = float(parts[4].split('_')[0])
+        w_var = float(parts[0].split('_')[0])
+        reg_hyp = float(parts[1].split('_')[0])
+        activation = parts[2].split('_')[0]
+        num_epochs = int(parts[3].split('_')[0])
+        learning_rate = float(parts[4].split('_')[0])
         self.N_stim = int(parts[5].split('D')[0])
         self.N_cell = int(parts[6].split('_')[0])
-        self.hyp(task=self.N_stim, activation=self.activation, lr=self.learning_rate, num_epochs=self.num_epochs, reg=self.reg_hyp, w_var=self.w_var)
+        N_Models = int(parts[7].split('_')[0]) 
+        self.hyp(N_Models=N_Models, activation=activation, lr=learning_rate, num_epochs=num_epochs, reg=reg_hyp, w_var=w_var)
         self.load_state_dict(checkpoint['model_state_dict'])
 
     def del_model(self, dir, name, p=True):
