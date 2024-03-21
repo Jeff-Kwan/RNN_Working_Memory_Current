@@ -415,19 +415,18 @@ class RNN(nn.Module):
             plt.savefig(os.path.join(self.dir, f'Model_{ind}', f"{self.name}_drs_model_{ind}.png"))
             plt.close()
 
-
     def plot_PCAs(self, inds, stimuli):
         '''Plot the gradient flow in PC1-PC2 space.'''
-        # Weights and constants
-        c = self.dt / self.tau
-        W = self.rec_weights.cpu().detach().numpy()
-        b = self.rec_biases.cpu().detach().numpy()
-        Win = self.inp_weights.cpu().detach().numpy()
-        hbef = stimuli[:, 0, :].unsqueeze(-1).unsqueeze(1).cpu().detach().numpy()
-        cs = ['red', 'blue', 'green', 'purple']
+        # Constants
+        cs = ['red', 'cyan', 'palegreen', 'plum']
         self.dms_task_epochs(rand=False)
         trials = 100
         for ind in inds:
+            # Model-specific weights and biases
+            c = self.dt / self.tau
+            W = np.squeeze(self.rec_weights[ind,:,:].cpu().detach().numpy())
+            b = np.squeeze(self.rec_biases[ind,:,:].cpu().detach().numpy())
+            Win = np.squeeze(self.inp_weights[ind,:,:].cpu().detach().numpy())
             try:
                 os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
             except FileExistsError:
@@ -454,46 +453,31 @@ class RNN(nn.Module):
             pc1axis = np.linspace(pc1_min,pc1_max,100)
             pc2axis = np.linspace(pc2_min,pc2_max,100)
 
-            absgradplot = np.zeros([4,100,100])
-            alldirections = np.zeros([4,100,100,2])
-            for i in range(100):
-                for j in range(100):
-                    pc1 = pc1axis[i]
-                    pc2 = pc2axis[j]
+            def abs_grad(trial, stage):
+                absgradplot = np.zeros([100,100])
+                if stage == 'Fixation' or stage == 'Delay' or stage == 'Response':
+                    h = np.array([0,0]); s = '-'
+                elif stage == 'Sample' and trial < 2:
+                    h = np.array([0,1]); s = "A"
+                elif stage == 'Sample' and trial >= 2:
+                    h = np.array([1,0]); s = "B"
+                elif stage == 'Test' and trial%2 == 0:
+                    h = np.array([0,1]); s = "A"
+                elif stage == 'Test' and trial%2 == 1:
+                    h = np.array([1,0]); s = "B"
 
-                    u = 0*ubase + pc1*v[:,0] + pc2*v[:,1]
-                    u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
+                for i in range(100):
+                    for j in range(100):
+                        pc1 = pc1axis[i]
+                        pc2 = pc2axis[j]
 
-                    dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@hbef)
+                        u = ubase + pc1*v[:,0] + pc2*v[:,1]
+                        #u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
+                        dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@h)
 
-                    directions = vinv@dudt 
-                    directions = directions[:,:2,0]
-                    directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
-                    alldirections[:,i,j] = np.squeeze(directions)
-                    absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
-                    absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
-
-            # Task titles
-            fig, axs = plt.subplots(2, 2, figsize=(12, 12), sharex=True, sharey=True)
-            fig.subplots_adjust(hspace=0.3, wspace=0.3) 
-            stim = self.stim_AB(stimuli)
-            for i in range(4):
-                ax = axs[i//2, i%2]
-                im = ax.imshow(np.flipud(absgradplot[i].T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], aspect='auto')
-                ax.plot(pcspace[self.fixation_len:, i, 0], pcspace[self.fixation_len:, i, 1], c=cs[i], linewidth=4)
-                #ax.quiver(pc1axis[::10], pc2axis[::10], alldirections[i, ::10, ::10, 0], alldirections[i, ::10, ::10, 1])
-                ax.set_title(f'Combination {stim[i]}', fontsize=14)
-                ax.set_xlabel('PC1', fontsize=14)
-                ax.set_ylabel('PC2', fontsize=14)         
-                cax = inset_axes(ax, width="5%", height="100%", loc='lower left', 
-                                bbox_to_anchor=(1.05, 0., 1, 1),
-                                bbox_transform=ax.transAxes,
-                                borderpad=0,
-                                )
-                fig.colorbar(im, cax=cax)
-            plt.suptitle(f'Average Gradient Flow in PC1-PC2 Space for Model Index {ind} - Sample Stimulus', fontsize=16)
-            plt.savefig(os.path.join(self.dir,f'Model_{ind}', f"{self.name}_Grad_Sample_model_{ind}.png"))
-            plt.close()
+                        absdudt = np.sqrt(np.sum(np.square(dudt))) #(4 cases, 1)
+                        absgradplot[i,j] = absdudt
+                return np.log(absgradplot), s
 
 
             '''PCA Plot'''
@@ -518,13 +502,18 @@ class RNN(nn.Module):
                     stage_end = cumulative_splits[idx+1]
                     x = trial_pc[stage_start:stage_end, 0]
                     y = trial_pc[stage_start:stage_end, 1]
-                    ax.plot(x, y, c=cs[trial])
+                    ax.plot(x, y, c=cs[trial], linewidth=2)
                     arrow = FancyArrow(x[-2], y[-2], x[-1]-x[-2], y[-1]-y[-2], color=cs[trial],
-                           shape='full', lw=1, length_includes_head=True, head_width=.8, fill=False)
+                           shape='full', lw=1, length_includes_head=True, head_width=1.2, fill=False)
                     ax.add_patch(arrow)
                     ax.set_xlim(pc1_min, pc1_max)
                     ax.set_ylim(pc2_min, pc2_max)
                     ax.set_title(stage if trial == 0 else "")
+
+                    absgradplot, s = abs_grad(trial, stage)                    
+                    ax.imshow(np.flipud(absgradplot.T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], 
+                              aspect='auto', vmin=np.min(absgradplot), vmax=np.max(absgradplot))
+                    ax.set_xlabel(str(s)) 
 
                 # Set stimulus labels
                 axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
@@ -539,8 +528,6 @@ class RNN(nn.Module):
 
             plt.savefig(os.path.join(self.dir,f'Model_{ind}',f"{self.name}_pca_trajectories_model_{ind}.png"))
             plt.close()
-
-
 
 
     '''Utility Functions'''
