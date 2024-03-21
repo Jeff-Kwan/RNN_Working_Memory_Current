@@ -79,14 +79,16 @@ for i in range(len(w_var_arr)):
         model.eval()
         # Test Model
         acc = model.test(stimuli, labels)
-        indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-        indices = indices[0]
-        model.forward(stimuli)
+        indices = torch.nonzero(acc.eq(1.0), as_tuple=True)[0]
+        if len(indices) > 0:
+            indices = indices[[0]]
+            
+            model.forward(stimuli)
 
-        # Analysis
-        model.plot_pca_trajectories_2D(indices, stimuli)
-        model.plot_abs_activity(indices, stimuli)
-        model.plot_drs(indices, stimuli)
+            # Analysis
+            model.plot_pca_trajectories_2D(indices, stimuli)
+            model.plot_abs_activity(indices, stimuli)
+            model.plot_drs(indices, stimuli)
 
         # Time Analysis
         time_elapsed = time() - start_time
