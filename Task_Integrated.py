@@ -7,13 +7,13 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Models_1'
-N_Models = 10
+model_name = 'Models_3'
+N_Models = 100
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 1e-4
-w_var = 0.001         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+reg = 1e-3
+w_var = 0.01         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 # Training Hyperparameters
 N_EPOCHS = 2000
@@ -45,15 +45,18 @@ model.train_model(stimuli, labels)
 model = RNN(dir='Models', name=model_name)
 
 # Test Model
-acc = model.test(stimuli, labels)
+acc = model.test(stimuli, labels, p=True)
 indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-indices = indices[[0, -1]]
 
 # Model Evaluation
 model.eval()
 model.forward(stimuli)
 
-# Analysis
+# Gradient Fixed Point Plotting
+model.plot_gradient_flow(indices, stimuli)
+
+# Example Plotting
+indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model
 model.plot_pca_trajectories_2D(indices, stimuli)
 model.plot_abs_activity(indices, stimuli)
 model.plot_drs(indices, stimuli)

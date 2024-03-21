@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from sklearn.decomposition import PCA
 import os, shutil
 from time import time
@@ -255,7 +256,7 @@ class RNN(nn.Module):
 
         # Reset task epochs
         self.dms_task_epochs(rand=False)
-
+        print()
         if p:
             print('\nTraining Complete. \n')
 
@@ -307,15 +308,14 @@ class RNN(nn.Module):
         fig, ax1 = plt.subplots()
         ax1.plot(np.arange(len(self.training_losses)), self.training_losses, 'b-')
         ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("Total Loss", color='b')
+        ax1.set_ylabel("Loss", color='b')
         ax1.tick_params('y', colors='b')
-        #ax1.set_yscale('log')  # Set y-axis to log scale
         ax1.set_ylim(0, 1.5)
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
-        ax2.set_ylabel("Average Accuracy", color='orange')
+        ax2.set_ylabel("Accuracy", color='orange')
         ax2.tick_params('y', colors='orange')
-        plt.title("Total training loss and best accuracy over epochs")
+        plt.title("Average training loss and accuracy over epochs")
         plt.tight_layout()
         plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"))
         plt.close()
@@ -400,7 +400,7 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Absolute Neural Activities Across Time Model {ind}', fontsize=16)
+            fig.suptitle(f'Absolute Neural Activities Across Time for Model {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -442,7 +442,7 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Neural Activity Gradients Across Time Model {ind}', fontsize=16)
+            fig.suptitle(f'Neural Activity Gradients Across Time for Model {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -467,102 +467,76 @@ class RNN(nn.Module):
             plt.close()
 
 
-    def plot_gradient_field(self, inds):
-        """Plot the gradient field of the neural activity in PC1-PC2 space."""
-        for ind in inds:
-            print(ind)
-            if self.N_Models > 1:
-                activities = torch.squeeze(self.activities[:, :, ind, :])
-            else:
-                activities = self.activities
-            # PCA
-            principalComponents = self.pca(activities)
-            pc1 = principalComponents[:, 0]
-            pc2 = principalComponents[:, 1]
-
-            # Compute the gradient of r in the PC1-PC2 space
-            dr_dt = np.gradient(self.activities.detach().numpy(), axis=0)
-
-            # Project the gradient onto the PC1-PC2 space
-            dr_dt_pc1 = np.dot(dr_dt, pc1)
-            dr_dt_pc2 = np.dot(dr_dt, pc2)
-
-            # Compute the magnitude of the gradient
-            magnitude = np.sqrt(dr_dt_pc1**2 + dr_dt_pc2**2)
-
-            # Plot the gradient field
-            plt.figure()
-            plt.quiver(pc1, pc2, dr_dt_pc1, dr_dt_pc2, magnitude, cmap='viridis')
-            plt.colorbar(label='dr/dt')
-            plt.xlabel('PC1')
-            plt.ylabel('PC2')
-            plt.title('Gradient field of neural activity in PC1-PC2 space')
-            plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_field.png"))
-            plt.close()
-
-
     def plot_gradient_flow(self, inds, stimuli):
-        for ind in inds:
-            if self.N_Models > 1:
-                activities = torch.squeeze(self.activities[:, :, ind, :]).detach().numpy() 
-            else:
-                activities = self.activities.detach().numpy() 
+        '''Plot the gradient flow in PC1-PC2 space.'''
+        # Weights and constants
+        c = self.dt / self.tau
+        W = self.rec_weights.cpu().detach().numpy()
+        b = self.rec_biases.cpu().detach().numpy()
+        Win = self.inp_weights.cpu().detach().numpy()
+        hbef = stimuli[:, 0, :].unsqueeze(-1).unsqueeze(1).cpu().detach().numpy()
+        cs = ['red', 'blue', 'green', 'purple']
 
-            # Weights and constants
-            c = self.dt / self.tau
-            W = self.rec_weights.cpu().detach().numpy()
-            b = self.rec_biases.cpu().detach().numpy()
-            Win = self.inp_weights.cpu().detach().numpy()
-            hbef = stimuli[:, 0, :].unsqueeze(-1).unsqueeze(1).cpu().detach().numpy()
+        # PCA
+        uall = torch.squeeze(self.activities[:, :, inds, :].transpose(2,3)).detach().numpy() # Match axes  
+        cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
+        w, v = np.linalg.eig(cov)
+        vinv = np.linalg.inv(v) #to convert from neuron space to PC space
+        pcspace = (vinv@(uall))
+        pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
+        pcmean = np.mean(pcspace,axis=(0,1))
 
-            # PCA
-            uall = np.concatenate([activities[:, i, :]
-                                     for i in range(activities.shape[1])], axis=0)
-            pca = PCA()
-            pcspace = pca.fit_transform(uall)
-            v = pca.components_
-            vinv = np.linalg.inv(v)
-            pcmean = np.mean(pcspace, axis=0)
+        ubase = np.zeros([10])
+        for pc in range(2,10):
+            ubase += pcmean[pc] * v[:,pc]
 
-            ubase = np.zeros([10])
-            for pc in range(2,10):
-                ubase += pcmean[pc] * v[:,pc]
+        # Compute min and max for axes limits
+        pc1_min, pc1_max = np.min(pcspace[:,:, 0])-1, np.max(pcspace[:,:, 0])+1
+        pc2_min, pc2_max = np.min(pcspace[:,:, 1])-1, np.max(pcspace[:,:, 1])+1
+        pc1axis = np.linspace(pc1_min,pc1_max,100)
+        pc2axis = np.linspace(pc2_min,pc2_max,100)
 
-            # Compute global min and max for axes limits
-            pc1_min, pc1_max = np.min(pcspace[:, 0]), np.max(pcspace[:, 0])
-            pc2_min, pc2_max = np.min(pcspace[:, 1]), np.max(pcspace[:, 1])
+        absgradplot = np.zeros([4,100,100])
+        alldirections = np.zeros([4,100,100,2])
+        for i in range(100):
+            for j in range(100):
 
-            pc1axis = np.linspace(pc1_min,pc1_max,100)
-            pc2axis = np.linspace(pc2_min,pc2_min,100)
+                pc1 = pc1axis[i]
+                pc2 = pc2axis[j]
 
-            absgradplot = np.zeros([4,100,100])
-            alldirections = np.zeros([4,100,100,2])
-            for i in range(100):
-                for j in range(100):
+                u = ubase + pc1*v[:,0] + pc2*v[:,1]
+                u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
 
-                    pc1 = pc1axis[i]
-                    pc2 = pc2axis[j]
+                dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@hbef)
 
-                    u = 0*ubase + pc1*v[:,0] + pc2*v[:,1]
-                    u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
+                directions = vinv@dudt 
+                directions = directions[:,:2,0]
+                directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
+                alldirections[:,i,j] = np.squeeze(directions)
+                absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
+                absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
 
-                    dudt = c * (-u + self.phi(W@u + b, t=False)+ Win@hbef)
-
-                    directions = np.squeeze(vinv@dudt)
-                    directions = directions[:,:2,0]
-                    directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
-                    alldirections[:,i,j] = directions
-                    absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
-                    absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
-
-            fig,ax = plt.subplots(2,2)
-            cs = ['red', 'blue', 'green', 'purple']
-            for i in range(4):
-                ax[i//2, i%2].imshow(np.flipud(absgradplot[i].T),extent=[pc1_min,pc1_max,pc2_min,pc2_max], aspect='auto')
-                ax[i//2, i%2].plot(pcspace[len(uall)//4*i+50:len(uall)//4*(i+1),0],pcspace[len(uall)//4*i+50:len(uall)//4*(i+1),1],c=cs[i])
-                ax[i//2, i%2].quiver(pc1axis[::10],pc2axis[::10],alldirections[i,::10,::10,0],alldirections[i,::10,::10,1])
-            plt.savefig(os.path.join(self.dir, f"{self.name}_gradient_flow_model_{ind}.png"))
-            plt.close()
+        # Task titles
+        fig, axs = plt.subplots(2, 2, figsize=(12, 12), sharex=True, sharey=True)
+        fig.subplots_adjust(hspace=0.3, wspace=0.3) 
+        stim = self.stim_AB(stimuli)
+        for i in range(4):
+            ax = axs[i//2, i%2]
+            im = ax.imshow(np.flipud(absgradplot[i].T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], aspect='auto')
+            ax.plot(pcspace[:, i, 0], pcspace[:, i, 1], c=cs[i], linewidth=4)
+            ax.quiver(pc1axis[::10], pc2axis[::10], alldirections[i, ::10, ::10, 0], alldirections[i, ::10, ::10, 1])
+            ax.set_title(f'Combination {stim[i]}', fontsize=14)
+            ax.set_xlabel('PC1', fontsize=14)
+            ax.set_ylabel('PC2', fontsize=14)         
+            cax = inset_axes(ax, width="5%", height="100%", loc='lower left', 
+                            bbox_to_anchor=(1.05, 0., 1, 1),
+                            bbox_transform=ax.transAxes,
+                            borderpad=0,
+                            )
+            fig.colorbar(im, cax=cax)
+        plt.suptitle('Average Gradient Flow in PC1-PC2 Space - Sample Stimulus', fontsize=16)
+        plt.savefig(os.path.join(self.dir, f"{self.name}_Grad_Sample.png"))
+        plt.close()
 
 
 
