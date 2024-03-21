@@ -75,6 +75,7 @@ for i in range(len(w_var_arr)):
         if len(indices) > 0:
             indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
             model.plot_PCAs(indices, stimuli)
+            model.plot_PCAs_2(indices, stimuli)
             model.forward(stimuli)
             model.plot_abs_activity(indices, stimuli)
             model.plot_drs(indices, stimuli)

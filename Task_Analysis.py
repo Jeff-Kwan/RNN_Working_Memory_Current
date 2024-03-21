@@ -27,6 +27,7 @@ indices = torch.tensor([60])
 
 # PCA Plots
 model.plot_PCAs(indices, stimuli)
+model.plot_PCAs_2(indices, stimuli)
 
 # Activity Plots
 model.forward(stimuli)

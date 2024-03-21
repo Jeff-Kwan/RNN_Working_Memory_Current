@@ -530,6 +530,118 @@ class RNN(nn.Module):
             plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.png"))
             plt.close()
 
+    def plot_PCAs_2(self, inds, stimuli):
+        '''Plot the gradient flow in PC1-PC2 space.'''
+        # Constants
+        cs = ['red', 'cyan', 'palegreen', 'plum']
+        self.dms_task_epochs(rand=False)
+        trials = 100
+        for ind in inds:
+            try:
+                os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
+            except FileExistsError:
+                pass
+            # Model-specific weights and biases
+            c = self.dt / self.tau
+            W = np.squeeze(self.rec_weights[ind,:,:].cpu().detach().numpy())
+            b = np.squeeze(self.rec_biases[ind,:,:].cpu().detach().numpy())
+            Win = np.squeeze(self.inp_weights[ind,:,:].cpu().detach().numpy())
+            uall = np.zeros([self.run_len, 4, self.N_cell, trials])
+            for i in range(trials):
+                self.forward(stimuli)
+                uall[:,:,:,i] = torch.squeeze(self.activities[:, :, ind, :]).cpu().detach().numpy() # Match axes  
+            # PCA
+            cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
+            w, v = np.linalg.eig(cov)
+            vinv = np.linalg.inv(v) #to convert from neuron space to PC space
+            pcspace = (vinv@(uall))
+            pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
+            pcmean = np.mean(pcspace,axis=(0,1))
+
+            ubase = np.zeros([10])
+            for pc in range(2,10):
+                ubase += pcmean[pc] * v[:,pc]
+
+            # Compute min and max for axes limits
+            pc1_min, pc1_max = np.min(pcspace[:,:, 0])-0.5, np.max(pcspace[:,:, 0])+0.5
+            pc2_min, pc2_max = np.min(pcspace[:,:, 1])-0.5, np.max(pcspace[:,:, 1])+0.5
+            pc1axis = np.linspace(pc1_min,pc1_max,100)
+            pc2axis = np.linspace(pc2_min,pc2_max,100)
+
+            def log_abs_grad(h):
+                absgradplot = np.zeros([100,100])
+                for i in range(100):
+                    for j in range(100):
+                        pc1 = pc1axis[i]
+                        pc2 = pc2axis[j]
+                        u = ubase + pc1*v[:,0] + pc2*v[:,1]
+                        dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@h)
+                        absdudt = np.sqrt(np.sum(np.square(dudt)))
+                        absgradplot[i,j] = absdudt
+                return np.log(absgradplot)
+            abs_grad_cases = np.array([log_abs_grad(np.array([0,1])),      # A
+                                       log_abs_grad(np.array([1,0])),      # B
+                                       log_abs_grad(np.array([0,0])),])    # -
+
+
+            '''PCA Plot'''
+            # Create figure with 4 rows and 5 columns
+            fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
+            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
+
+            # Plotting parameters
+            stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
+            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
+            cumulative_splits = np.cumsum(splits)
+
+            # Task titles
+            tasks = self.stim_AB(stimuli)
+
+            for trial in range(4):
+                trial_pc = pcspace[:,trial,:]
+                for idx, stage in enumerate(stages):
+                    ax = axes[trial, idx]
+                    stage_start = cumulative_splits[idx]
+                    stage_end = cumulative_splits[idx+1]
+                    x = trial_pc[stage_start:stage_end, 0]
+                    y = trial_pc[stage_start:stage_end, 1]
+                    ax.plot(x, y, c=cs[trial], linewidth=2)
+                    arrow = FancyArrow(x[-2], y[-2], x[-1]-x[-2], y[-1]-y[-2], color=cs[trial],
+                           shape='full', lw=1, length_includes_head=True, head_width=1.2, fill=False)
+                    ax.add_patch(arrow)
+                    ax.set_xlim(pc1_min, pc1_max)
+                    ax.set_ylim(pc2_min, pc2_max)
+                    ax.set_title(stage if trial == 0 else "")
+
+                    if stage == 'Fixation' or stage == 'Delay' or stage == 'Response':
+                        absgradplot=abs_grad_cases[2]; s = '-'
+                    elif stage == 'Sample' and trial < 2:
+                        absgradplot=abs_grad_cases[0]; s = "A"
+                    elif stage == 'Sample' and trial >= 2:
+                        absgradplot=abs_grad_cases[1]; s = "B"
+                    elif stage == 'Test' and trial%2 == 0:
+                        absgradplot=abs_grad_cases[0]; s = "A"
+                    elif stage == 'Test' and trial%2 == 1:
+                        absgradplot=abs_grad_cases[1]; s = "B"
+                  
+                    im = ax.imshow(np.flipud(absgradplot.T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], 
+                              aspect='auto', vmin=np.min(absgradplot), 
+                              vmax=np.max(absgradplot))
+                    ax.set_xlabel(str(s)) 
+
+                # Set stimulus labels
+                axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
+
+            # Set common labels
+            fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
+            fig.text(0.02, 0.5, 'PC2', va='center', fontsize=15)
+
+            # Add legend
+            handles, labels = axes[0, -1].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
+
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}_2.png"))
+            plt.close()
 
     '''Utility Functions'''
     def to_gpu(self):
