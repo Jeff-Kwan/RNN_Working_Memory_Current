@@ -32,7 +32,9 @@ N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.logspace(-3, 0, num=30)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.linspace(1e-3, 1, num=30)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+print("Training on w_var values:")
+print(w_var_arr)
 
 repeats = 1
 '''~~~      RNN Training        ~~~'''
