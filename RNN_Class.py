@@ -327,7 +327,7 @@ class RNN(nn.Module):
         """Plot the absolute value of neural activities across time for each task."""
         for ind in inds:
             try:
-                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
+                os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
             except FileExistsError:
                 pass
             # Activities [Time, 4, N_Models, N_cell]
@@ -345,7 +345,7 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Absolute Neural Activities Across Time for Model {ind}', fontsize=16)
+            fig.suptitle(f'Absolute Neural Activities Across Time for Model Index {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -366,7 +366,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Model_{ind}',f"{self.name}_abs_activities_model_{ind}.png"))
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"))
             plt.close()
 
 
@@ -374,7 +374,7 @@ class RNN(nn.Module):
         """Plot the absolute value of neural activities across time for each task."""
         for ind in inds:
             try:
-                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
+                os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
             except FileExistsError:
                 pass
             if self.N_Models > 1:
@@ -391,7 +391,7 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Neural Activity Gradients Across Time for Model {ind}', fontsize=16)
+            fig.suptitle(f'Neural Activity Gradients Across Time for Model Index {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -412,7 +412,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Model_{ind}', f"{self.name}_drs_model_{ind}.png"))
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"))
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -422,15 +422,15 @@ class RNN(nn.Module):
         self.dms_task_epochs(rand=False)
         trials = 100
         for ind in inds:
+            try:
+                os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
+            except FileExistsError:
+                pass
             # Model-specific weights and biases
             c = self.dt / self.tau
             W = np.squeeze(self.rec_weights[ind,:,:].cpu().detach().numpy())
             b = np.squeeze(self.rec_biases[ind,:,:].cpu().detach().numpy())
             Win = np.squeeze(self.inp_weights[ind,:,:].cpu().detach().numpy())
-            try:
-                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
-            except FileExistsError:
-                pass
             uall = np.zeros([self.run_len, 4, self.N_cell, trials])
             for i in range(trials):
                 self.forward(stimuli)
@@ -453,31 +453,20 @@ class RNN(nn.Module):
             pc1axis = np.linspace(pc1_min,pc1_max,100)
             pc2axis = np.linspace(pc2_min,pc2_max,100)
 
-            def abs_grad(trial, stage):
+            def log_abs_grad(h):
                 absgradplot = np.zeros([100,100])
-                if stage == 'Fixation' or stage == 'Delay' or stage == 'Response':
-                    h = np.array([0,0]); s = '-'
-                elif stage == 'Sample' and trial < 2:
-                    h = np.array([0,1]); s = "A"
-                elif stage == 'Sample' and trial >= 2:
-                    h = np.array([1,0]); s = "B"
-                elif stage == 'Test' and trial%2 == 0:
-                    h = np.array([0,1]); s = "A"
-                elif stage == 'Test' and trial%2 == 1:
-                    h = np.array([1,0]); s = "B"
-
                 for i in range(100):
                     for j in range(100):
                         pc1 = pc1axis[i]
                         pc2 = pc2axis[j]
-
                         u = ubase + pc1*v[:,0] + pc2*v[:,1]
-                        #u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
                         dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@h)
-
-                        absdudt = np.sqrt(np.sum(np.square(dudt))) #(4 cases, 1)
+                        absdudt = np.sqrt(np.sum(np.square(dudt)))
                         absgradplot[i,j] = absdudt
-                return np.log(absgradplot), s
+                return np.log(absgradplot)
+            abs_grad_cases = np.array([log_abs_grad(np.array([0,1])),      # A
+                                       log_abs_grad(np.array([1,0])),      # B
+                                       log_abs_grad(np.array([0,0])),])    # -
 
 
             '''PCA Plot'''
@@ -495,7 +484,6 @@ class RNN(nn.Module):
 
             for trial in range(4):
                 trial_pc = pcspace[:,trial,:]
-
                 for idx, stage in enumerate(stages):
                     ax = axes[trial, idx]
                     stage_start = cumulative_splits[idx]
@@ -510,9 +498,20 @@ class RNN(nn.Module):
                     ax.set_ylim(pc2_min, pc2_max)
                     ax.set_title(stage if trial == 0 else "")
 
-                    absgradplot, s = abs_grad(trial, stage)                    
-                    ax.imshow(np.flipud(absgradplot.T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], 
-                              aspect='auto', vmin=np.min(absgradplot), vmax=np.max(absgradplot))
+                    if stage == 'Fixation' or stage == 'Delay' or stage == 'Response':
+                        absgradplot=abs_grad_cases[2]; s = '-'
+                    elif stage == 'Sample' and trial < 2:
+                        absgradplot=abs_grad_cases[0]; s = "A"
+                    elif stage == 'Sample' and trial >= 2:
+                        absgradplot=abs_grad_cases[1]; s = "B"
+                    elif stage == 'Test' and trial%2 == 0:
+                        absgradplot=abs_grad_cases[0]; s = "A"
+                    elif stage == 'Test' and trial%2 == 1:
+                        absgradplot=abs_grad_cases[1]; s = "B"
+                  
+                    im = ax.imshow(np.flipud(absgradplot.T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], 
+                              aspect='auto', vmin=np.min(abs_grad_cases), 
+                              vmax=np.max(abs_grad_cases))
                     ax.set_xlabel(str(s)) 
 
                 # Set stimulus labels
@@ -520,13 +519,15 @@ class RNN(nn.Module):
 
             # Set common labels
             fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
-            fig.text(0.02, 0.5, 'PC2', va='center', rotation='vertical', fontsize=15)
+            fig.text(0.02, 0.5, 'PC2', va='center', fontsize=15)
 
             # Add legend
             handles, labels = axes[0, -1].get_legend_handles_labels()
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
+            cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
+            cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
 
-            plt.savefig(os.path.join(self.dir,f'Model_{ind}',f"{self.name}_pca_trajectories_model_{ind}.png"))
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.png"))
             plt.close()
 
 
