@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.patches import FancyArrow
 from sklearn.decomposition import PCA
 import os, shutil
 from time import time
@@ -90,16 +91,17 @@ class RNN(nn.Module):
 
     def dms_task_epochs(self, rand=False):
         '''Set epochs for delayed match to sample task'''
-        self.fixation_len = self.get_epoch(self.T_cycle, rand)
-        self.sample_len =self.get_epoch(self.T_cycle, rand)
-        self.delay_len = self.get_epoch(self.T_cycle, rand)
-        self.test_len = self.get_epoch(self.T_cycle, rand)
-        self.response_len = self.get_epoch(self.T_cycle, rand)
+        self.fixation_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
+        self.sample_len =self.get_epoch(self.T_cycle, rand=False, interval=20)
+        self.delay_len = self.get_epoch(self.T_cycle*2, rand, interval=60)
+        self.test_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
+        self.response_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
+        self.run_len = self.fixation_len + self.sample_len + self.delay_len + self.test_len + self.response_len
 
-    def get_epoch(self, time, rand):
+    def get_epoch(self, time, rand, interval=20):
         '''Get the number of timesteps of an epochs for a task'''
         if rand:
-            return np.random.randint(time-20, time+20)
+            return np.random.randint(time-interval, time+interval)
         else:
             return time
 
@@ -195,7 +197,7 @@ class RNN(nn.Module):
 
         # Average response over time is returned
         # Output 
-        output = torch.stack([torch.mean(rm[self.delay_len//2:], 0), torch.mean(rs, 0)])
+        output = torch.stack([torch.mean(rm, 0), torch.mean(rs, 0)]) # rm[self.delay_len//2:] if needed
         self.activities = torch.squeeze(torch.stack(self.activities))
         self.drs = torch.squeeze(torch.stack(self.drs))
 
@@ -225,7 +227,7 @@ class RNN(nn.Module):
         start_time = time()
         for epoch in range(self.num_epochs):
             # Randomize the task epochs
-            self.dms_task_epochs(rand=False)#True)
+            self.dms_task_epochs(rand=True)
 
             optimizer.zero_grad()
             output = self.forward(train_data).transpose(2,3)
@@ -321,70 +323,13 @@ class RNN(nn.Module):
         plt.close()
 
 
-    def plot_pca_trajectories_2D(self, inds, stimuli):
-        '''Assumes 2D DMS task'''
-        for ind in inds:
-            # Activities [Time, 4, N_Models, N_cell]
-            if self.N_Models > 1:
-                activities = torch.squeeze(self.activities[:, :, ind, :])
-            else:
-                activities = self.activities
-
-            # PCA
-            principalComponents = self.pca(activities)
-
-            # Create figure with 4 rows and 5 columns
-            fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
-            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
-
-            # Plotting parameters
-            stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
-            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
-            cumulative_splits = np.cumsum(splits)
-            div = np.cumsum([0] + [len(a) for a in [activities[:,0,:], activities[:,1,:],
-                                                    activities[:,2,:], activities[:,3,:]]])
-            
-            # Compute global min and max for axes limits
-            pc1_min, pc1_max = np.min(principalComponents[:, 0]), np.max(principalComponents[:, 0])
-            pc2_min, pc2_max = np.min(principalComponents[:, 1]), np.max(principalComponents[:, 1])
-
-            # Task titles
-            tasks = self.stim_AB(stimuli)
-
-            for trial in range(4):
-                start = div[trial]
-                end = div[trial + 1]
-                trial_pc = principalComponents[start:end]
-
-                for idx, stage in enumerate(stages):
-                    ax = axes[trial, idx]
-                    stage_start = cumulative_splits[idx]
-                    stage_end = cumulative_splits[idx+1]
-                    ax.plot(trial_pc[stage_start:stage_end, 0], trial_pc[stage_start:stage_end, 1])
-                    ax.set_xlim(pc1_min, pc1_max)
-                    ax.set_ylim(pc2_min, pc2_max)
-                    ax.set_title(stage if trial == 0 else "")
-                    ax.scatter(trial_pc[stage_start, 0], trial_pc[stage_start, 1], color='green', label='Start', s=50, marker='o')
-                    ax.scatter(trial_pc[stage_end-1, 0], trial_pc[stage_end-1, 1], color='red', label='End', s=50, marker='x')
-
-                # Set stimulus labels
-                axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
-
-            # Set common labels
-            fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
-            fig.text(0.02, 0.5, 'PC2', va='center', rotation='vertical', fontsize=15)
-
-            # Add legend
-            handles, labels = axes[0, -1].get_legend_handles_labels()
-            fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
-
-            plt.savefig(os.path.join(self.dir, f"{self.name}_pca_trajectories_model_{ind}.png"))
-            plt.close()
-
-
     def plot_abs_activity(self, inds, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
         for ind in inds:
+            try:
+                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
+            except FileExistsError:
+                pass
             # Activities [Time, 4, N_Models, N_cell]
             if self.N_Models > 1:
                 activities = torch.squeeze(self.activities[:, :, ind, :])
@@ -421,13 +366,17 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f"{self.name}_abs_activities_model_{ind}.png"))
+            plt.savefig(os.path.join(self.dir,f'Model_{ind}',f"{self.name}_abs_activities_model_{ind}.png"))
             plt.close()
 
 
     def plot_drs(self, inds, stimuli):
         """Plot the absolute value of neural activities across time for each task."""
         for ind in inds:
+            try:
+                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
+            except FileExistsError:
+                pass
             if self.N_Models > 1:
                 drs = torch.squeeze(self.drs[:, :, ind, :])
             else:
@@ -463,11 +412,11 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f"{self.name}_drs_model_{ind}.png"))
+            plt.savefig(os.path.join(self.dir, f'Model_{ind}', f"{self.name}_drs_model_{ind}.png"))
             plt.close()
 
 
-    def plot_gradient_flow(self, inds, stimuli):
+    def plot_PCAs(self, inds, stimuli):
         '''Plot the gradient flow in PC1-PC2 space.'''
         # Weights and constants
         c = self.dt / self.tau
@@ -476,67 +425,120 @@ class RNN(nn.Module):
         Win = self.inp_weights.cpu().detach().numpy()
         hbef = stimuli[:, 0, :].unsqueeze(-1).unsqueeze(1).cpu().detach().numpy()
         cs = ['red', 'blue', 'green', 'purple']
+        self.dms_task_epochs(rand=False)
+        trials = 100
+        for ind in inds:
+            try:
+                os.makedirs(os.path.join(self.dir,f'Model_{ind}'), exist_ok=False)
+            except FileExistsError:
+                pass
+            uall = np.zeros([self.run_len, 4, self.N_cell, trials])
+            for i in range(trials):
+                self.forward(stimuli)
+                uall[:,:,:,i] = torch.squeeze(self.activities[:, :, ind, :]).cpu().detach().numpy() # Match axes  
+            # PCA
+            cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
+            w, v = np.linalg.eig(cov)
+            vinv = np.linalg.inv(v) #to convert from neuron space to PC space
+            pcspace = (vinv@(uall))
+            pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
+            pcmean = np.mean(pcspace,axis=(0,1))
 
-        # PCA
-        uall = torch.squeeze(self.activities[:, :, inds, :].transpose(2,3)).detach().numpy() # Match axes  
-        cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
-        w, v = np.linalg.eig(cov)
-        vinv = np.linalg.inv(v) #to convert from neuron space to PC space
-        pcspace = (vinv@(uall))
-        pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
-        pcmean = np.mean(pcspace,axis=(0,1))
+            ubase = np.zeros([10])
+            for pc in range(2,10):
+                ubase += pcmean[pc] * v[:,pc]
 
-        ubase = np.zeros([10])
-        for pc in range(2,10):
-            ubase += pcmean[pc] * v[:,pc]
+            # Compute min and max for axes limits
+            pc1_min, pc1_max = np.min(pcspace[:,:, 0])-0.5, np.max(pcspace[:,:, 0])+0.5
+            pc2_min, pc2_max = np.min(pcspace[:,:, 1])-0.5, np.max(pcspace[:,:, 1])+0.5
+            pc1axis = np.linspace(pc1_min,pc1_max,100)
+            pc2axis = np.linspace(pc2_min,pc2_max,100)
 
-        # Compute min and max for axes limits
-        pc1_min, pc1_max = np.min(pcspace[:,:, 0])-1, np.max(pcspace[:,:, 0])+1
-        pc2_min, pc2_max = np.min(pcspace[:,:, 1])-1, np.max(pcspace[:,:, 1])+1
-        pc1axis = np.linspace(pc1_min,pc1_max,100)
-        pc2axis = np.linspace(pc2_min,pc2_max,100)
+            absgradplot = np.zeros([4,100,100])
+            alldirections = np.zeros([4,100,100,2])
+            for i in range(100):
+                for j in range(100):
+                    pc1 = pc1axis[i]
+                    pc2 = pc2axis[j]
 
-        absgradplot = np.zeros([4,100,100])
-        alldirections = np.zeros([4,100,100,2])
-        for i in range(100):
-            for j in range(100):
+                    u = 0*ubase + pc1*v[:,0] + pc2*v[:,1]
+                    u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
 
-                pc1 = pc1axis[i]
-                pc2 = pc2axis[j]
+                    dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@hbef)
 
-                u = ubase + pc1*v[:,0] + pc2*v[:,1]
-                u = u[np.newaxis,:,np.newaxis] #(1,10,1) (4 case, 10 neurons, 1)
+                    directions = vinv@dudt 
+                    directions = directions[:,:2,0]
+                    directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
+                    alldirections[:,i,j] = np.squeeze(directions)
+                    absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
+                    absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
 
-                dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@hbef)
+            # Task titles
+            fig, axs = plt.subplots(2, 2, figsize=(12, 12), sharex=True, sharey=True)
+            fig.subplots_adjust(hspace=0.3, wspace=0.3) 
+            stim = self.stim_AB(stimuli)
+            for i in range(4):
+                ax = axs[i//2, i%2]
+                im = ax.imshow(np.flipud(absgradplot[i].T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], aspect='auto')
+                ax.plot(pcspace[self.fixation_len:, i, 0], pcspace[self.fixation_len:, i, 1], c=cs[i], linewidth=4)
+                #ax.quiver(pc1axis[::10], pc2axis[::10], alldirections[i, ::10, ::10, 0], alldirections[i, ::10, ::10, 1])
+                ax.set_title(f'Combination {stim[i]}', fontsize=14)
+                ax.set_xlabel('PC1', fontsize=14)
+                ax.set_ylabel('PC2', fontsize=14)         
+                cax = inset_axes(ax, width="5%", height="100%", loc='lower left', 
+                                bbox_to_anchor=(1.05, 0., 1, 1),
+                                bbox_transform=ax.transAxes,
+                                borderpad=0,
+                                )
+                fig.colorbar(im, cax=cax)
+            plt.suptitle(f'Average Gradient Flow in PC1-PC2 Space for Model Index {ind} - Sample Stimulus', fontsize=16)
+            plt.savefig(os.path.join(self.dir,f'Model_{ind}', f"{self.name}_Grad_Sample_model_{ind}.png"))
+            plt.close()
 
-                directions = vinv@dudt 
-                directions = directions[:,:2,0]
-                directions /= np.sqrt(np.sum(np.square(directions),axis=1,keepdims=True))
-                alldirections[:,i,j] = np.squeeze(directions)
-                absdudt = np.sqrt(np.sum(np.square(dudt),axis=1)) #(4 cases, 1)
-                absgradplot[:,i,j] = np.squeeze(absdudt[:,0])
 
-        # Task titles
-        fig, axs = plt.subplots(2, 2, figsize=(12, 12), sharex=True, sharey=True)
-        fig.subplots_adjust(hspace=0.3, wspace=0.3) 
-        stim = self.stim_AB(stimuli)
-        for i in range(4):
-            ax = axs[i//2, i%2]
-            im = ax.imshow(np.flipud(absgradplot[i].T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], aspect='auto')
-            ax.plot(pcspace[:, i, 0], pcspace[:, i, 1], c=cs[i], linewidth=4)
-            ax.quiver(pc1axis[::10], pc2axis[::10], alldirections[i, ::10, ::10, 0], alldirections[i, ::10, ::10, 1])
-            ax.set_title(f'Combination {stim[i]}', fontsize=14)
-            ax.set_xlabel('PC1', fontsize=14)
-            ax.set_ylabel('PC2', fontsize=14)         
-            cax = inset_axes(ax, width="5%", height="100%", loc='lower left', 
-                            bbox_to_anchor=(1.05, 0., 1, 1),
-                            bbox_transform=ax.transAxes,
-                            borderpad=0,
-                            )
-            fig.colorbar(im, cax=cax)
-        plt.suptitle('Average Gradient Flow in PC1-PC2 Space - Sample Stimulus', fontsize=16)
-        plt.savefig(os.path.join(self.dir, f"{self.name}_Grad_Sample.png"))
-        plt.close()
+            '''PCA Plot'''
+            # Create figure with 4 rows and 5 columns
+            fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
+            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
+
+            # Plotting parameters
+            stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
+            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
+            cumulative_splits = np.cumsum(splits)
+
+            # Task titles
+            tasks = self.stim_AB(stimuli)
+
+            for trial in range(4):
+                trial_pc = pcspace[:,trial,:]
+
+                for idx, stage in enumerate(stages):
+                    ax = axes[trial, idx]
+                    stage_start = cumulative_splits[idx]
+                    stage_end = cumulative_splits[idx+1]
+                    x = trial_pc[stage_start:stage_end, 0]
+                    y = trial_pc[stage_start:stage_end, 1]
+                    ax.plot(x, y, c=cs[trial])
+                    arrow = FancyArrow(x[-2], y[-2], x[-1]-x[-2], y[-1]-y[-2], color=cs[trial],
+                           shape='full', lw=1, length_includes_head=True, head_width=.8, fill=False)
+                    ax.add_patch(arrow)
+                    ax.set_xlim(pc1_min, pc1_max)
+                    ax.set_ylim(pc2_min, pc2_max)
+                    ax.set_title(stage if trial == 0 else "")
+
+                # Set stimulus labels
+                axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
+
+            # Set common labels
+            fig.text(0.5, 0.02, 'PC1', ha='center', fontsize=15)
+            fig.text(0.02, 0.5, 'PC2', va='center', rotation='vertical', fontsize=15)
+
+            # Add legend
+            handles, labels = axes[0, -1].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
+
+            plt.savefig(os.path.join(self.dir,f'Model_{ind}',f"{self.name}_pca_trajectories_model_{ind}.png"))
+            plt.close()
 
 
 

@@ -4,6 +4,7 @@ from RNN_Class import RNN
 import numpy as np
 import datetime
 import os
+import shutil
 
 start_time = time()
 
@@ -25,13 +26,13 @@ activation = 'relu'
 reg = 1e-4
 
 # Training Hyperparameters
-N_EPOCHS = 2000
+N_EPOCHS = 2500
 LEARNING_RATE = 0.002
 N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.logspace(-3, 0, num=50)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.logspace(-3, 0, num=30)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 
 repeats = 1
 '''~~~      RNN Training        ~~~'''
@@ -53,9 +54,9 @@ for i in range(len(w_var_arr)):
                     pass
                 continue
         except FileNotFoundError:
-            # Clear all files in the directory
-            for file in os.listdir(f'Models/wvar/{model_name}'):
-                os.remove(f'Models/wvar/{model_name}/{file}')
+            # Recreate folder
+            shutil.rmtree(f'Models/wvar/{model_name}')
+            os.makedirs(f'Models/wvar/{model_name}')
 
 
         '''~~~      Model Training    ~~~'''
@@ -67,26 +68,14 @@ for i in range(len(w_var_arr)):
         model.train_model(stimuli, labels, p=False)
 
         '''~~~      Model Evaluation    ~~~'''
-        # Load Saved Best Model
-        model = RNN(dir='Models/wvar', name=model_name, p=False)
-
         # Test Model
-        accuracy = model.test(stimuli, labels, p=False)
-        with open(f'Models/wvar/{model_name}/{"Successful" if torch.count_nonzero(accuracy == 1)/len(accuracy)>0.8 else "Failed"}.txt', 'w') as file:
-            file.write(f"Description: \n{model.description}")
-            
-        # Model Evaluation
         model.eval()
-        # Test Model
-        acc = model.test(stimuli, labels)
-        indices = torch.nonzero(acc.eq(1.0), as_tuple=True)[0]
+        acc = model.test(stimuli, labels, p=False)
+        indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
         if len(indices) > 0:
-            indices = indices[[0]]
-            
+            indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
+            model.plot_PCAs(indices, stimuli)
             model.forward(stimuli)
-
-            # Analysis
-            model.plot_pca_trajectories_2D(indices, stimuli)
             model.plot_abs_activity(indices, stimuli)
             model.plot_drs(indices, stimuli)
 

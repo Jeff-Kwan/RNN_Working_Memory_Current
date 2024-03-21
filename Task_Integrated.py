@@ -7,7 +7,7 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Models_3'
+model_name = 'Models_1'
 N_Models = 100
 
 # Model Hyperparameters
@@ -45,21 +45,19 @@ model.train_model(stimuli, labels)
 model = RNN(dir='Models', name=model_name)
 
 # Test Model
-acc = model.test(stimuli, labels, p=True)
-indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-
-# Model Evaluation
 model.eval()
+acc = model.test(stimuli, labels, p=False)
+indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
+indices = indices[torch.randint(len(indices), size=(2,))] # Random Correct Model(s)
+
+# PCA Plots
+model.plot_PCAs(indices, stimuli)
+
+# Activity Plots
 model.forward(stimuli)
-
-# Gradient Fixed Point Plotting
-model.plot_gradient_flow(indices, stimuli)
-
-# Example Plotting
-indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model
-model.plot_pca_trajectories_2D(indices, stimuli)
 model.plot_abs_activity(indices, stimuli)
 model.plot_drs(indices, stimuli)
+
 
 
 '''~~~      End of File         ~~~'''
