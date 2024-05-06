@@ -37,7 +37,7 @@ class RNN(nn.Module):
                     print(f"Directory {name} exists but no model found. Proceeding with new model?")
 
 
-    def hyp(self, task='dms', N_Models=1, activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1):
+    def hyp(self, task='dms', N_Models=1, activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1, low_rank=False):
         '''Set hyperparameters'''
         # Model parameters
         self.N_cell = N_CELL
@@ -319,7 +319,7 @@ class RNN(nn.Module):
         ax2.tick_params('y', colors='orange')
         plt.title("Average training loss and accuracy over epochs")
         plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"))
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.svg"), format='svg')
         plt.close()
 
 
@@ -366,7 +366,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"))
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.svg"), format='svg')
             plt.close()
 
 
@@ -412,7 +412,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"))
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.svg"), format='svg')
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -527,7 +527,7 @@ class RNN(nn.Module):
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
 
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.png"))
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.svg"), format='svg')
             plt.close()
 
     def plot_PCAs_2(self, inds, stimuli):
@@ -640,7 +640,7 @@ class RNN(nn.Module):
             handles, labels = axes[0, -1].get_legend_handles_labels()
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
 
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}_2.png"))
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}_2.svg"), format='svg')
             plt.close()
 
     '''Utility Functions'''

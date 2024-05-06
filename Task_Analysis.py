@@ -5,7 +5,7 @@ from RNN_Class import RNN
 start_time = time()
 
 # Load Model
-model_name = 'Models_4'
+model_name = 'Models_1'
 model = RNN('Models', model_name, p=True)
 
 # DMS Data & Run Model
@@ -23,7 +23,7 @@ model.eval()
 acc = model.test(stimuli, labels, p=True)
 indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
-indices = torch.tensor([60])
+indices = torch.tensor([75])
 
 # PCA Plots
 model.plot_PCAs(indices, stimuli)
