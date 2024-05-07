@@ -665,6 +665,7 @@ class RNN(nn.Module):
             'model_state_dict': self.state_dict(),
             'description': description,
         }, os.path.join(self.dir, f'{self.name}.pt'))
+        self.description = description
         self.plot_training_loss()
 
     def load_model(self, name, p=False):
@@ -719,7 +720,7 @@ class RNN(nn.Module):
 
 
 
-def progress_bar(total, current, start_time, info):
+def progress_bar(total, current, start_time, info=""):
     elapsed_time = time() - start_time
     bar_length = 40
     progress = (current+1) / total

@@ -26,39 +26,40 @@ activation = 'relu'
 w_var = 0.001
 
 # Training Hyperparameters
-N_EPOCHS = 3000
+N_EPOCHS = 1000
 LEARNING_RATE = 0.002
-N_MODELS = 100
+N_MODELS = 2
 
 
 '''~~~      Varying Model Params        ~~~'''
 reg_arr = np.logspace(-5, 0, num=11)        
 print("Training on regularization values:")
 print(reg_arr)
+varying_var = 'reg'
 
 repeats = 3
 '''~~~      RNN Training        ~~~'''
 for i in range(len(reg_arr)):
     print(f"\nTraining Model {i+1}/{len(reg_arr)}...")
     # Model name
-    model_name = f'W_init - Model {i+1} of {len(reg_arr)}'
-    model = RNN(dir='Models/reg', name=model_name)
+    model_name = f'{varying_var} - Model {i+1} of {len(reg_arr)}'
+    model = RNN(dir=f'Models/{varying_var}', name=model_name)
 
     # Repeat Training for 3 times unless early sucess
     for trial in range(repeats):
         # Check if Model is already successfully trained
         try:
-            with open(f'Models/reg/{model_name}/Successful.txt', 'r') as file:
+            with open(f'Models/{varying_var}/{model_name}/Successful.txt', 'r') as file:
                 # Delete Failed.txt if it exists
                 try:
-                    os.remove(f'Models/reg/{model_name}/Failed.txt')
+                    os.remove(f'Models/{varying_var}/{model_name}/Failed.txt')
                 except FileNotFoundError:
                     pass
                 continue
         except FileNotFoundError:
             # Recreate folder
-            shutil.rmtree(f'Models/reg/{model_name}')
-            os.makedirs(f'Models/reg/{model_name}')
+            shutil.rmtree(f'Models/{varying_var}/{model_name}')
+            os.makedirs(f'Models/{varying_var}/{model_name}')
 
 
         '''~~~      Model Training    ~~~'''
@@ -81,6 +82,13 @@ for i in range(len(reg_arr)):
             model.forward(stimuli)
             model.plot_abs_activity(indices, stimuli)
             model.plot_drs(indices, stimuli)
+            
+            if len(indices)/N_MODELS >= 0.5:
+                with open(f'Models/{varying_var}/{model_name}/Successful.txt', 'w') as file:
+                    file.write(model.description)
+            else:
+                with open(f'Models/{varying_var}/{model_name}/Failed.txt', 'w') as file:
+                    file.write(model.description)
 
         # Time Analysis
         time_elapsed = time() - start_time
