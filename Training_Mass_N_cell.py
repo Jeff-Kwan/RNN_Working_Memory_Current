@@ -24,6 +24,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 # Model Hyperparameters
 activation = 'relu'
 w_var = 0.001
+reg = 0.001
 
 # Training Hyperparameters
 N_EPOCHS = 3000
@@ -32,17 +33,17 @@ N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-reg_arr = np.logspace(-5, 0, num=11)        
+cell_arr = np.linspace(5, 30, num=6).astype(int)        
 print("Training on regularization values:")
-print(reg_arr)
-varying_var = 'reg'
+print(cell_arr)
+varying_var = 'N_cell'
 
-repeats = 3
+repeats = 1
 '''~~~      RNN Training        ~~~'''
-for i in range(len(reg_arr)):
-    print(f"\nTraining Model {i+1}/{len(reg_arr)}...")
+for i in range(len(cell_arr)):
+    print(f"\nTraining Model {i+1}/{len(cell_arr)}...")
     # Model name
-    model_name = f'{varying_var} - Model {i+1} of {len(reg_arr)}'
+    model_name = f'{varying_var} - Model {i+1} of {len(cell_arr)}'
     model = RNN(dir=f'Models/{varying_var}', name=model_name)
 
     # Repeat Training for 3 times unless early sucess
@@ -65,7 +66,7 @@ for i in range(len(reg_arr)):
         '''~~~      Model Training    ~~~'''
 
         # Initialize the RNN model
-        model.hyp('dms', N_Models=N_MODELS, activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg_arr[i], w_var=w_var)
+        model.hyp('dms', N_Models=N_MODELS, activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var, N_CELL=cell_arr[i])
 
         # Train the model
         model.train_model(stimuli, labels, p=False)
@@ -92,5 +93,5 @@ for i in range(len(reg_arr)):
 
         # Time Analysis
         time_elapsed = time() - start_time
-        ETA = time_elapsed * (len(reg_arr) - i - 1) / (i + 1)
+        ETA = time_elapsed * (len(cell_arr) - i - 1) / (i + 1)
         print(f"\nETA: {datetime.timedelta(seconds=np.round(ETA))} / {datetime.timedelta(seconds=np.round(time_elapsed+ETA))}")
