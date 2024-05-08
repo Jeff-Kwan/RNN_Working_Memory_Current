@@ -687,7 +687,7 @@ class RNN(nn.Module):
         self.N_stim = int(parts[5].split('D')[0])
         self.N_cell = int(parts[6].split('_')[0])
         N_Models = int(parts[7].split('_')[0]) 
-        self.hyp(N_Models=N_Models, activation=activation, lr=learning_rate, num_epochs=num_epochs, reg=reg_hyp, w_var=w_var)
+        self.hyp(N_Models=N_Models, N_CELL=self.N_cell, activation=activation, lr=learning_rate, num_epochs=num_epochs, reg=reg_hyp, w_var=w_var)
         self.load_state_dict(checkpoint['model_state_dict'])
 
     def del_model(self, dir, name, p=True):
