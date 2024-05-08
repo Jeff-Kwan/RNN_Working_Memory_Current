@@ -23,7 +23,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 '''~~~      Fixed Model Params        ~~~'''
 # Model Hyperparameters
 activation = 'relu'
-reg = 1e-4
+reg = 0.001
 
 # Training Hyperparameters
 N_EPOCHS = 2500

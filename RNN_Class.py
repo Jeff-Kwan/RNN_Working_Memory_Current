@@ -443,8 +443,8 @@ class RNN(nn.Module):
             pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
             pcmean = np.mean(pcspace,axis=(0,1))
 
-            ubase = np.zeros([10])
-            for pc in range(2,10):
+            ubase = np.zeros([self.N_cell])
+            for pc in range(2,self.N_cell):
                 ubase += pcmean[pc] * v[:,pc]
 
             # Compute min and max for axes limits
@@ -558,8 +558,8 @@ class RNN(nn.Module):
             pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
             pcmean = np.mean(pcspace,axis=(0,1))
 
-            ubase = np.zeros([10])
-            for pc in range(2,10):
+            ubase = np.zeros([self.N_cell])
+            for pc in range(2,self.N_cell):
                 ubase += pcmean[pc] * v[:,pc]
 
             # Compute min and max for axes limits
