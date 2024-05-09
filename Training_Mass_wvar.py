@@ -27,7 +27,7 @@ reg = 0.001
 
 # Training Hyperparameters
 N_EPOCHS = 2500
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.003
 N_MODELS = 100
 
 

@@ -202,12 +202,10 @@ class RNN(nn.Module):
 
 
         # Average response over time is returned
-        # Output 
-        output = torch.stack([torch.mean(rm, 0), torch.mean(rs, 0)]) # rm[self.delay_len//2:] if needed
         self.activities = torch.squeeze(torch.stack(self.activities))
         self.drs = torch.squeeze(torch.stack(self.drs))
 
-        return output
+        return rm, rs   # dim: [timesteps, cases, N_models, label logits]
 
 
 
@@ -226,9 +224,10 @@ class RNN(nn.Module):
         # Move to GPU
         train_data = train_data.to(self.device)
         train_labels = train_labels.to(self.device)
-        train_labels = torch.unsqueeze(train_labels.transpose(0,1), dim=-1).repeat(1, 1, 1, self.N_Models)
+        memory_labels = train_labels[:,0,0].long()
+        task_labels = train_labels[:,1,0].long()
         self.train()
-
+ 
         self.acc = []
         start_time = time()
         for epoch in range(self.num_epochs):
@@ -236,9 +235,9 @@ class RNN(nn.Module):
             self.dms_task_epochs(rand=True)
 
             optimizer.zero_grad()
-            output = self.forward(train_data).transpose(2,3)
-            loss_mem = loss_fn(output[0].transpose(0,2), train_labels[0].transpose(0,2))
-            loss_pred = loss_fn(output[1].transpose(0,2), train_labels[1].transpose(0,2))
+            rm, rs = self.forward(train_data)
+            loss_mem = loss_fn(rm.permute(1, 3, 0, 2), memory_labels.view(4, 1, 1).expand(-1, rm.shape[0], self.N_Models))
+            loss_pred = loss_fn(rs.permute(1, 3, 0, 2), task_labels.view(4, 1, 1).expand(-1, rs.shape[0], self.N_Models))
             loss = loss_mem + loss_pred
             loss = loss + self.reg_hyp*torch.mean(self.activities ** 2)
             loss.backward()
@@ -272,15 +271,15 @@ class RNN(nn.Module):
     def test(self, test_data, test_labels, p=True):
         """Test the model and print accuracy and confusion matrix."""
         if test_labels.shape == torch.Size([4, 2, 2]):
-            test_labels = torch.unsqueeze(test_labels.transpose(0,1), dim=-1).repeat(1, 1, 1, self.N_Models)
+            labels = test_labels[:,1,0].long()
         self.eval()
         with torch.no_grad():
             # Forward pass
-            output = self.forward(test_data)
+            rm, rs = self.forward(test_data)
 
-            # The second item in output is used for evaluation
-            predictions = torch.squeeze(torch.round(torch.softmax(output[1], dim=-1))[:,:,0])
-            labels = torch.squeeze(test_labels[1,:,0,:])
+            # Get predictions
+            predictions = torch.round(torch.softmax(rs, dim=-1))[:,:,:,0] # [timesteps, cases, models]
+            labels = labels.view(1, 4, 1).repeat(rs.shape[0], 1, self.N_Models)
 
             # Calculate accuracy
             correct_predictions = torch.eq(predictions.int(), labels.int()).sum(dim=0)

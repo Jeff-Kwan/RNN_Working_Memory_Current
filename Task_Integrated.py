@@ -7,7 +7,7 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Low_Rank'
+model_name = 'Model 1'
 N_Models = 10
 N_CELL = 20
 
@@ -15,11 +15,11 @@ N_CELL = 20
 activation = 'relu'
 reg = 1e-4
 w_var = 0.1         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
-rank = 1
+rank = None
 
 # Training Hyperparameters
 N_EPOCHS = 2000
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.003
 
 
 '''~~~      DMS Task            ~~~'''
