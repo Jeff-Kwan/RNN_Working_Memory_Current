@@ -38,7 +38,7 @@ print("Training on regularization values:")
 print(cell_arr)
 varying_var = 'N_cell'
 
-repeats = 1
+repeats = 1 
 '''~~~      RNN Training        ~~~'''
 for i in range(len(cell_arr)):
     print(f"\nTraining Model {i+1}/{len(cell_arr)}...")
