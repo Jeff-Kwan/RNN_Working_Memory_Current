@@ -279,11 +279,13 @@ class RNN(nn.Module):
 
             # Get predictions
             predictions = torch.round(torch.softmax(rs, dim=-1))[:,:,:,0] # [timesteps, cases, models]
-            labels = labels.view(1, 4, 1).repeat(rs.shape[0], 1, self.N_Models)
+            labels = labels.view(4, 1).repeat(1, self.N_Models)
 
             # Calculate accuracy
-            correct_predictions = torch.eq(predictions.int(), labels.int()).sum(dim=0)
-            accuracy = correct_predictions / labels.shape[0]            
+            predictions = predictions[-1,:,:] # Last timestep, [cases, models]
+            #predictions = torch.mean(predictions, dim=0) # average across timesteps, [cases, models]
+            correct_predictions = torch.eq(predictions.int(), labels).sum(dim=0)
+            accuracy = correct_predictions / 4
 
             # Print results
             labels = [1,0,0,1]
