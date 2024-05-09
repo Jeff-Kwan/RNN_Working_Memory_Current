@@ -26,13 +26,13 @@ activation = 'relu'
 reg = 0.001
 
 # Training Hyperparameters
-N_EPOCHS = 2500
-LEARNING_RATE = 0.003
+N_EPOCHS = 5000
+LEARNING_RATE = 0.002
 N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-w_var_arr = np.linspace(1e-3, 1, num=30)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+w_var_arr = np.logspace(-4, 0, num=5)         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 print("Training on w_var values:")
 print(w_var_arr)
 varying_var = 'w_init'
