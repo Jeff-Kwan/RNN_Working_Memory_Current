@@ -278,7 +278,8 @@ class RNN(nn.Module):
             rm, rs = self.forward(test_data)
 
             # Get predictions
-            predictions = torch.round(torch.softmax(rs, dim=-1))[:,:,:,0] # [timesteps, cases, models]
+            #predictions = torch.round(torch.softmax(rs, dim=-1))[:,:,:,0] # [timesteps, cases, models]
+            predictions = torch.argmax(torch.softmax(rs, dim=-1), dim=-1).float() # [timesteps, cases, models]
             labels = labels.view(4, 1).repeat(1, self.N_Models)
 
             # Calculate accuracy
@@ -288,14 +289,14 @@ class RNN(nn.Module):
             accuracy = correct_predictions / 4
 
             # Print results
-            labels = [1,0,0,1]
+            labels = test_labels[:,1,0].long()
             if p:
                 print(f'Successfully trained models = {torch.count_nonzero(accuracy == 1)}/{len(accuracy)}')
                 print(f"Average accuracy: {torch.round(torch.mean(accuracy) * 100).item()}%")
                 print("Correct Label | Average Predicted Label")
                 print("--------------|------------------------")
                 for i in range(4):
-                    print(f"{int(labels[i])}             | {torch.mean(predictions[i]).item()}")
+                    print(f"{int(labels[i])}             | {round(torch.mean(predictions[i]).item(),2)}")
         return accuracy
 
 
