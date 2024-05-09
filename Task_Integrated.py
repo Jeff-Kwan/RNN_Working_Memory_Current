@@ -7,17 +7,18 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Models_Large_20N'
+model_name = 'Low_Rank'
 N_Models = 10
 N_CELL = 20
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 1e-3
+reg = 1e-4
 w_var = 0.1         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+rank = 1
 
 # Training Hyperparameters
-N_EPOCHS = 1000
+N_EPOCHS = 2000
 LEARNING_RATE = 0.002
 
 
@@ -36,7 +37,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 '''~~~      RNN Training        ~~~'''
 # Initialize the RNN model
 model = RNN(dir='Models', name=model_name)
-model.hyp('dms', N_Models=N_Models, N_CELL=N_CELL, activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var)
+model.hyp('dms', N_Models=N_Models, N_CELL=N_CELL, activation=activation, lr=LEARNING_RATE, num_epochs=N_EPOCHS, reg=reg, w_var=w_var, rank=rank)
 
 # Train the model
 model.train_model(stimuli, labels)

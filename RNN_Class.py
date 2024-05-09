@@ -7,7 +7,6 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.patches import FancyArrow
 from sklearn.decomposition import PCA
 import os, shutil
@@ -37,7 +36,7 @@ class RNN(nn.Module):
                     print(f"Directory {name} exists but no model found. Proceeding with new model?")
 
 
-    def hyp(self, task='dms', N_Models=1, activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1, low_rank=False):
+    def hyp(self, task='dms', N_Models=1, activation='relu', lr=0.001, num_epochs=1000, reg=0.0001, N_CELL=10, N_STIM=2, w_var=0.1, rank=None):
         '''Set hyperparameters'''
         # Model parameters
         self.N_cell = N_CELL
@@ -47,7 +46,12 @@ class RNN(nn.Module):
         self.N_Models = N_Models
 
         # Recurrent parameters
-        self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).uniform_(-0.01,0.01))
+        self.rank = rank
+        if rank:
+            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).uniform_(-0.01,0.01))
+            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).uniform_(-0.01,0.01))
+        else:
+            self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).uniform_(-0.01,0.01))
         self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).uniform_(-0.01,0.01))
 
         # Input and output weights
@@ -130,6 +134,8 @@ class RNN(nn.Module):
     def forward(self, x):
         '''Forward pass, directing to all tasks.'''
         x = x.float()
+        if self.rank:
+            self.rec_weights = self.rec_m @ self.rec_n
         if self.task == 'dms':
             return self.forward_dms(x)
         else:
