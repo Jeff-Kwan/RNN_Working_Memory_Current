@@ -27,13 +27,13 @@ w_var = 0.001
 reg = 0.001
 
 # Training Hyperparameters
-N_EPOCHS = 3000
+N_EPOCHS = 5000
 LEARNING_RATE = 0.002
 N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-cell_arr = np.linspace(5, 30, num=6).astype(int)        
+cell_arr = np.linspace(5, 40, num=8).astype(int)        
 print("Training on regularization values:")
 print(cell_arr)
 varying_var = 'N_cell'
