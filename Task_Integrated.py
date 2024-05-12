@@ -9,7 +9,7 @@ start_time = time()
 # Model name
 model_name = 'Model 1'
 N_Models = 10
-N_CELL = 20
+N_CELL = 10
 
 # Model Hyperparameters
 activation = 'relu'
