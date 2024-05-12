@@ -545,7 +545,6 @@ class RNN(nn.Module):
             plt.ylabel('Recorded Neuron Activities')
             plt.title('Scatter Plot of true activities and approximations')
             plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_true_vs_approx_activities_{ind}.svg"), format='svg')
-            plt.show()
             plt.close()
 
     def plot_PCAs_2(self, inds, stimuli):
