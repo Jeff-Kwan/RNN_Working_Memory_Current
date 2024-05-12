@@ -6,7 +6,7 @@ start_time = time()
 
 # Load Model
 model_name = 'Model 1'
-model = RNN('Models/w_init', model_name, p=True)
+model = RNN('Models', model_name, p=True)
 
 # DMS Data & Run Model
 stimuli = torch.tensor([[[0,1], [0,1]],                         # Match
