@@ -26,13 +26,13 @@ activation = 'relu'
 w_var = 0.001
 
 # Training Hyperparameters
-N_EPOCHS = 3000
+N_EPOCHS = 5000
 LEARNING_RATE = 0.002
 N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
-reg_arr = np.logspace(-5, 0, num=11)        
+reg_arr = np.logspace(-5, 0, num=6)        
 print("Training on regularization values:")
 print(reg_arr)
 varying_var = 'reg'

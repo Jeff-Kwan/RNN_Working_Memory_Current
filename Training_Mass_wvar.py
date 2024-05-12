@@ -37,7 +37,7 @@ print("Training on w_var values:")
 print(w_var_arr)
 varying_var = 'w_init'
 
-repeats = 2
+repeats = 1
 '''~~~      RNN Training        ~~~'''
 for i in range(len(w_var_arr)):
     print(f"\nTraining Model {i+1}/{len(w_var_arr)}...")
