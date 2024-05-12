@@ -17,8 +17,8 @@ labels = torch.tensor([[[0,1], [1,0]],
                        [[1,0], [1,0]]], dtype=torch.float)
 
 
-dir = 'Models/reg'
-varying_param = 'reg'
+dir = 'Models/w_init'
+varying_param = 'w_init'
 subfolders_num = len(os.listdir(dir))
 for i in range(subfolders_num):
     # Model name
@@ -30,6 +30,7 @@ for i in range(subfolders_num):
             model = RNN(dir=f'Models/{varying_param}', name=model_name)
             model.eval()
             acc = model.test(stimuli, labels, p=False)
+            #print(f'Number of successful models: {sum(acc.eq(1))}')
             indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
             if len(indices) > 0:
                 indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
@@ -40,7 +41,7 @@ for i in range(subfolders_num):
                 model.plot_drs(indices, stimuli)
 
     except FileNotFoundError:
-        pass
+            pass
 
     # Time Analysis
     progress_bar(subfolders_num, i, start_time)

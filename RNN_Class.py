@@ -48,8 +48,8 @@ class RNN(nn.Module):
         # Recurrent parameters
         self.rank = rank
         if rank:
-            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).uniform_(-0.01,0.01))
-            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).uniform_(-0.01,0.01))
+            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).uniform_(-0.1,0.1))
+            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).uniform_(-0.1,0.1))
         else:
             self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).uniform_(-0.01,0.01))
         self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).uniform_(-0.01,0.01))
@@ -535,6 +535,19 @@ class RNN(nn.Module):
             plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.svg"), format='svg')
             plt.close()
 
+            '''Scatter Plot to justify approximation'''
+            approx_pc = np.zeros([self.run_len, 4, self.N_cell])
+            approx_pc[:,:,0:2] = pcspace[:,:,0:2]
+            approx_pc[:,:,2:] = pcmean[None, None, 2:]
+            approx_u = approx_pc @ v.T
+            plt.scatter(approx_u, np.mean(uall, axis=3), s=1)
+            plt.xlabel('Approximated Neuron Activities by PC Averaging')
+            plt.ylabel('Recorded Neuron Activities')
+            plt.title('Scatter Plot of true activities and approximations')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_true_vs_approx_activities_{ind}.svg"), format='svg')
+            plt.show()
+            plt.close()
+
     def plot_PCAs_2(self, inds, stimuli):
         '''Plot the gradient flow in PC1-PC2 space.'''
         # Constants
@@ -664,8 +677,8 @@ class RNN(nn.Module):
         description = (
         f'{self.w_var}_wvar / {self.reg_hyp}_reg / {self.activation}_activation / '
         f'{self.num_epochs}_epochs / {self.learning_rate}_rate / {self.N_stim}D_DMS / '
-        f'{self.N_cell}_cells / {self.N_Models}_models / \n@ {len(self.training_losses)}/{self.num_epochs} '
-        f'training steps, loss = {self.training_losses[-1]}')
+        f'{self.N_cell}_cells / {self.N_Models}_models / {self.rank}_rank / '
+        f'\n@ {len(self.training_losses)}/{self.num_epochs} training steps, loss = {self.training_losses[-1]}')
         torch.save({
             'model_state_dict': self.state_dict(),
             'description': description,
@@ -675,7 +688,7 @@ class RNN(nn.Module):
 
     def load_model(self, name, p=False):
         """Load the model's state_dict and a description from the specified path.
-           Load n_cell, activation, n_stim, and N_Models."""
+        Load n_cell, activation, n_stim, N_Models, and rank."""
         checkpoint = torch.load(os.path.join(self.dir, f'{name}.pt'))
         self.description = checkpoint.get('description', '')
         if p:
@@ -691,8 +704,9 @@ class RNN(nn.Module):
         learning_rate = float(parts[4].split('_')[0])
         self.N_stim = int(parts[5].split('D')[0])
         self.N_cell = int(parts[6].split('_')[0])
-        N_Models = int(parts[7].split('_')[0]) 
-        self.hyp(N_Models=N_Models, N_CELL=self.N_cell, activation=activation, lr=learning_rate, num_epochs=num_epochs, reg=reg_hyp, w_var=w_var)
+        N_Models = int(parts[7].split('_')[0])
+        rank = int(parts[8].split('_')[0])  # Parse rank from the description
+        self.hyp(N_Models=N_Models, N_CELL=self.N_cell, activation=activation, lr=learning_rate, num_epochs=num_epochs, reg=reg_hyp, w_var=w_var, rank=rank)
         self.load_state_dict(checkpoint['model_state_dict'])
 
     def del_model(self, dir, name, p=True):

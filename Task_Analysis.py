@@ -6,7 +6,7 @@ start_time = time()
 
 # Load Model
 model_name = 'Model 1'
-model = RNN('Models', model_name, p=True)
+model = RNN('Models/w_init', model_name, p=True)
 
 # DMS Data & Run Model
 stimuli = torch.tensor([[[0,1], [0,1]],                         # Match
@@ -21,12 +21,14 @@ labels = torch.tensor([[[0,1], [1,0]],
 # Test Model
 model.eval()
 acc = model.test(stimuli, labels, p=True)
+print(f'Number of successful models: {sum(acc.eq(1))}')
 indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
+indices = torch.tensor([4])
 
 # PCA Plots
 model.plot_PCAs(indices, stimuli)
-model.plot_PCAs_2(indices, stimuli)
+#model.plot_PCAs_2(indices, stimuli)
 
 # Activity Plots
 model.forward(stimuli)

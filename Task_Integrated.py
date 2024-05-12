@@ -18,7 +18,7 @@ w_var = 0.1         # Input Weight variance, 10x-100x larger than 0.0001 (rec_we
 rank = None
 
 # Training Hyperparameters
-N_EPOCHS = 2000
+N_EPOCHS = 3000
 LEARNING_RATE = 0.003
 
 

@@ -83,7 +83,7 @@ for i in range(len(reg_arr)):
             model.plot_abs_activity(indices, stimuli)
             model.plot_drs(indices, stimuli)
             
-            if len(indices)/N_MODELS >= 0.5:
+            if sum(acc.eq(1))/N_MODELS >= 0.5:
                 with open(f'Models/{varying_var}/{model_name}/Successful.txt', 'w') as file:
                     file.write(model.description)
             else:
