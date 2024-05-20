@@ -48,16 +48,16 @@ class RNN(nn.Module):
         # Recurrent parameters
         self.rank = rank
         if rank:
-            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).uniform_(-0.1,0.1))
-            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).uniform_(-0.1,0.1))
+            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,torch.sqrt(0.1)))
+            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,torch.sqrt(0.1)))
         else:
-            self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).uniform_(-0.01,0.01))
-        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).uniform_(-0.01,0.01))
+            self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1))
+        self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).normal_(0, 0.1))
 
         # Input and output weights
-        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_STIM).uniform_(-w_std,w_std))
-        self.out_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).uniform_(-0.01,0.01))
-        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).uniform_(-0.01,0.01))
+        self.inp_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_STIM).normal_(0, w_std))
+        self.out_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).normal_(0, 0.1))
+        self.mem_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, 2, N_CELL).normal_(0, 0.1))
 
         # Hyperparameters
         self.activation = activation
@@ -97,7 +97,7 @@ class RNN(nn.Module):
         '''Set epochs for delayed match to sample task'''
         self.fixation_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
         self.sample_len =self.get_epoch(self.T_cycle, rand=False, interval=20)
-        self.delay_len = self.get_epoch(self.T_cycle*2, rand, interval=60)
+        self.delay_len = self.get_epoch(self.T_cycle*2, rand, interval=40)
         self.test_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
         self.response_len = self.get_epoch(self.T_cycle, rand=False, interval=20)
         self.run_len = self.fixation_len + self.sample_len + self.delay_len + self.test_len + self.response_len
@@ -164,7 +164,7 @@ class RNN(nn.Module):
             self.drs.append(dr.clone())
 
         def noise():
-            return self.noise*torch.rand([self.N_Models, self.N_cell,1], device=self.device)
+            return self.noise*torch.randn([self.N_Models, self.N_cell,1], device=self.device)
 
         # Fixation
         for t in range(self.fixation_len):
@@ -314,17 +314,20 @@ class RNN(nn.Module):
     def plot_training_loss(self):
         fig, ax1 = plt.subplots()
         ax1.plot(np.arange(len(self.training_losses)), self.training_losses, 'b-')
-        ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("Loss", color='b')
+        ax1.set_xlabel("epoch")
+        ax1.set_ylabel("loss", color='b')
         ax1.tick_params('y', colors='b')
         ax1.set_ylim(0, 1.5)
         ax2 = ax1.twinx()
         ax2.plot(np.arange(len(self.acc)), self.acc, linestyle='--', color='orange')
-        ax2.set_ylabel("Accuracy", color='orange')
+        ax2.set_ylabel("accuracy", color='orange')
         ax2.tick_params('y', colors='orange')
-        plt.title("Average training loss and accuracy over epochs")
+        ax1.spines['top'].set_visible(False) 
+        ax1.spines['right'].set_visible(False)
+        ax2.spines['top'].set_visible(False) 
+        ax2.spines['left'].set_visible(False)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.svg"), format='svg')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"), format='png')
         plt.close()
 
 
@@ -350,7 +353,6 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Absolute Neural Activities Across Time for Model Index {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -371,7 +373,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"), format='png')
             plt.close()
 
 
@@ -396,7 +398,6 @@ class RNN(nn.Module):
 
             # Create a 2x2 grid of subplots
             fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-            fig.suptitle(f'Neural Activity Gradients Across Time for Model Index {ind}', fontsize=16)
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -417,7 +418,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"), format='png')
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -477,7 +478,6 @@ class RNN(nn.Module):
             '''PCA Plot'''
             # Create figure with 4 rows and 5 columns
             fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
-            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
 
             # Plotting parameters
             stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
@@ -531,8 +531,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.png"), format='png')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -540,79 +539,52 @@ class RNN(nn.Module):
             approx_pc[:,:,0:2] = pcspace[:,:,0:2]
             approx_pc[:,:,2:] = pcmean[None, None, 2:]
             approx_u = approx_pc @ v.T
-            plt.scatter(approx_u, np.mean(uall, axis=3), s=1)
-            plt.xlabel('Approximated Neuron Activities by PC Averaging')
-            plt.ylabel('Recorded Neuron Activities')
-            plt.title('Scatter Plot of true activities and approximations')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_true_vs_approx_activities_{ind}.svg"), format='svg')
+            plt.scatter(approx_u[self.fixation_len:,:,:], np.mean(uall, axis=3)[self.fixation_len:,:,:], s=1)
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False) 
+            ax.spines['right'].set_visible(False)
+            axis_range = [0, max(np.max(approx_u[self.fixation_len:,:,:]), np.max(np.mean(uall, axis=3)[self.fixation_len:,:,:]))]
+            plt.plot(axis_range, axis_range, 'k--')
+            plt.xlabel('approximated neuron activities by PC averaging')
+            plt.ylabel('recorded neuron activities')
+            plt.axis('equal')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.png"), format='png')
             plt.close()
 
-    def plot_PCAs_2(self, inds, stimuli):
-        '''Plot the gradient flow in PC1-PC2 space.'''
-        # Constants
-        cs = ['red', 'cyan', 'palegreen', 'plum']
-        self.dms_task_epochs(rand=False)
-        trials = 100
-        for ind in inds:
-            try:
-                os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
-            except FileExistsError:
-                pass
-            # Model-specific weights and biases
-            c = self.dt / self.tau
-            W = np.squeeze(self.rec_weights[ind,:,:].cpu().detach().numpy())
-            b = np.squeeze(self.rec_biases[ind,:,:].cpu().detach().numpy())
-            Win = np.squeeze(self.inp_weights[ind,:,:].cpu().detach().numpy())
-            uall = np.zeros([self.run_len, 4, self.N_cell, trials])
-            for i in range(trials):
-                self.forward(stimuli)
-                uall[:,:,:,i] = torch.squeeze(self.activities[:, :, ind, :]).cpu().detach().numpy() # Match axes  
-            # PCA
-            cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
-            w, v = np.linalg.eig(cov)
-            vinv = np.linalg.inv(v) #to convert from neuron space to PC space
-            pcspace = (vinv@(uall))
-            pcspace = np.mean(pcspace, axis=3) #(time, cases, PCs)
-            pcmean = np.mean(pcspace,axis=(0,1))
+            '''Difference of true vs approx over time'''
+            diff_av = np.mean(uall, axis=3) - approx_u
+            diff_av = np.mean(np.abs(diff_av), axis=(1,2))
+            plt.scatter(np.arange(self.run_len), diff_av, s=1)
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False) 
+            ax.spines['right'].set_visible(False)
+            for split in cumulative_splits:
+                ax.axvline(x=split, color='lightgrey', linestyle='--')
+            plt.xlabel('timesteps')
+            plt.ylabel('averaged estimation error')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.png"), format='png')
+            plt.close()
 
-            ubase = np.zeros([self.N_cell])
-            for pc in range(2,self.N_cell):
-                ubase += pcmean[pc] * v[:,pc]
-
-            # Compute min and max for axes limits
-            pc1_min, pc1_max = np.min(pcspace[:,:, 0])-0.5, np.max(pcspace[:,:, 0])+0.5
-            pc2_min, pc2_max = np.min(pcspace[:,:, 1])-0.5, np.max(pcspace[:,:, 1])+0.5
-            pc1axis = np.linspace(pc1_min,pc1_max,100)
-            pc2axis = np.linspace(pc2_min,pc2_max,100)
-
-            def log_abs_grad(h):
+            '''Plot the gradient flow in PC1-PC2 space. Truncated PC approximation.'''
+            def log_abs_grad2(h):
                 absgradplot = np.zeros([100,100])
                 for i in range(100):
                     for j in range(100):
                         pc1 = pc1axis[i]
                         pc2 = pc2axis[j]
-                        u = ubase + pc1*v[:,0] + pc2*v[:,1]
+                        u = pc1*v[:,0] + pc2*v[:,1]
                         dudt = c*(-u + self.phi(W@u + b, t=False)+ Win@h)
                         absdudt = np.sqrt(np.sum(np.square(dudt)))
                         absgradplot[i,j] = absdudt
                 return np.log(absgradplot)
-            abs_grad_cases = np.array([log_abs_grad(np.array([0,1])),      # A
-                                       log_abs_grad(np.array([1,0])),      # B
-                                       log_abs_grad(np.array([0,0])),])    # -
+            abs_grad_cases = np.array([log_abs_grad2(np.array([0,1])),      # A
+                                       log_abs_grad2(np.array([1,0])),      # B
+                                       log_abs_grad2(np.array([0,0])),])    # -
 
 
             '''PCA Plot'''
             # Create figure with 4 rows and 5 columns
             fig, axes = plt.subplots(4, 5, figsize=(12, 8), sharex=True, sharey=True)
-            fig.suptitle(f"Trajectories in PC1-PC2 space for Model Index {ind}", fontsize=16)
-
-            # Plotting parameters
-            stages = ["Fixation", "Sample", "Delay", "Test", "Response"]
-            splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
-            cumulative_splits = np.cumsum(splits)
-
-            # Task titles
-            tasks = self.stim_AB(stimuli)
 
             for trial in range(4):
                 trial_pc = pcspace[:,trial,:]
@@ -642,8 +614,8 @@ class RNN(nn.Module):
                         absgradplot=abs_grad_cases[1]; s = "B"
                   
                     im = ax.imshow(np.flipud(absgradplot.T), extent=[pc1_min, pc1_max, pc2_min, pc2_max], 
-                              aspect='auto', vmin=np.min(absgradplot), 
-                              vmax=np.max(absgradplot))
+                              aspect='auto', vmin=np.min(abs_grad_cases), 
+                              vmax=np.max(abs_grad_cases))
                     ax.set_xlabel(str(s)) 
 
                 # Set stimulus labels
@@ -656,9 +628,54 @@ class RNN(nn.Module):
             # Add legend
             handles, labels = axes[0, -1].get_legend_handles_labels()
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
-
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_{ind}_2.svg"), format='svg')
+            cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
+            cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.png"), format='png')
             plt.close()
+
+            '''Scatter Plot to justify approximation'''
+            approx_pc = np.zeros([self.run_len, 4, self.N_cell])
+            approx_pc[:,:,0:2] = pcspace[:,:,0:2]
+            approx_u = approx_pc @ v.T
+            plt.scatter(approx_u[self.fixation_len:,:,:], np.mean(uall, axis=3)[self.fixation_len:,:,:], s=1)
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False) 
+            ax.spines['right'].set_visible(False)
+            axis_range = [0, max(np.max(approx_u[self.fixation_len:,:,:]), np.max(np.mean(uall, axis=3)[self.fixation_len:,:,:]))]
+            plt.plot(axis_range, axis_range, 'k--')
+            plt.xlabel('approximated neuron activities by PC truncation')
+            plt.ylabel('recorded neuron activities')
+            plt.axis('equal')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.png"), format='png')
+            plt.close()
+
+            '''Difference of true vs approx over time'''
+            diff_tr = np.mean(uall, axis=3) - approx_u
+            diff_tr = np.mean(np.abs(diff_tr), axis=(1,2))
+            plt.scatter(np.arange(self.run_len), diff_tr, s=1)
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False) 
+            ax.spines['right'].set_visible(False)
+            for split in cumulative_splits:
+                ax.axvline(x=split, color='lightgrey', linestyle='--')
+            plt.xlabel('timesteps')
+            plt.ylabel('averaged estimation error')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.png"), format='png')
+            plt.close()
+
+            # Scatter of truncate vs averaged error
+            plt.scatter(diff_av[self.fixation_len:], diff_tr[self.fixation_len:], s=1)
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            axis_range = [0, max(np.max(diff_av[self.fixation_len:]), np.max(diff_tr[self.fixation_len:]))]
+            plt.plot(axis_range, axis_range, 'k--')
+            plt.xlabel('averaged error')
+            plt.ylabel('truncated error')
+            plt.axis('equal')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.png"), format='png')
+            plt.close()
+            
 
     '''Utility Functions'''
     def to_gpu(self):
