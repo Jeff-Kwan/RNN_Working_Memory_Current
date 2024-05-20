@@ -34,7 +34,7 @@ N_MODELS = 100
 
 '''~~~      Varying Model Params        ~~~'''
 cell_arr = np.linspace(5, 40, num=8).astype(int)        
-print("Training on regularization values:")
+print("Training on N_CELL values:")
 print(cell_arr)
 varying_var = 'N_cell'
 
