@@ -7,19 +7,19 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Model 2'
-N_Models = 10
+model_name = 'Baseline Model'
+N_Models = 100
 N_CELL = 10
 
 # Model Hyperparameters
 activation = 'relu'
-reg = 1e-4
-w_var = 0.1         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
+reg = 0.001
+w_var = 0.01         # Input Weight variance, 10x-100x larger than 0.0001 (rec_weight variance)
 rank = None
 
 # Training Hyperparameters
-N_EPOCHS = 3000
-LEARNING_RATE = 0.003
+N_EPOCHS = 5000
+LEARNING_RATE = 0.002
 
 
 '''~~~      DMS Task            ~~~'''
