@@ -4,6 +4,7 @@ Waynes_Gradient_Plot.py
 test.py
 Report/
 Figures.py
+png_to_svg.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -327,7 +327,7 @@ class RNN(nn.Module):
         ax2.spines['top'].set_visible(False) 
         ax2.spines['left'].set_visible(False)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"), format='png')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.svg"), format='svg')
         plt.close()
 
 
@@ -352,7 +352,7 @@ class RNN(nn.Module):
             cumulative_splits = np.cumsum(splits)
 
             # Create a 2x2 grid of subplots
-            fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+            fig, axs = plt.subplots(2, 2, figsize=(12, 8))
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -373,7 +373,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.svg"), format='svg')
             plt.close()
 
 
@@ -397,7 +397,7 @@ class RNN(nn.Module):
             cumulative_splits = np.cumsum(splits)
 
             # Create a 2x2 grid of subplots
-            fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+            fig, axs = plt.subplots(2, 2, figsize=(12, 8))
             fig.subplots_adjust(hspace=0.4, wspace=0.2)
             stim = self.stim_AB(stimuli)
 
@@ -418,7 +418,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.svg"), format='svg')
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -459,6 +459,17 @@ class RNN(nn.Module):
             pc1axis = np.linspace(pc1_min,pc1_max,100)
             pc2axis = np.linspace(pc2_min,pc2_max,100)
 
+            '''% variance explained'''
+            explained_variance = np.round(w/np.sum(w), decimals=3)*100
+            plt.plot(np.arange(1, self.N_cell+1), explained_variance, 'o-')
+            ax = plt.gca()
+            ax.spines['top'].set_visible(False) 
+            ax.spines['right'].set_visible(False)
+            plt.xlabel('PC Index')
+            plt.ylabel(r'% Explained Variance')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_explained_variance_{ind}.svg"), format='svg')
+            plt.clf()
+
             def log_abs_grad(h):
                 absgradplot = np.zeros([100,100])
                 for i in range(100):
@@ -473,7 +484,6 @@ class RNN(nn.Module):
             abs_grad_cases = np.array([log_abs_grad(np.array([0,1])),      # A
                                        log_abs_grad(np.array([1,0])),      # B
                                        log_abs_grad(np.array([0,0])),])    # -
-
 
             '''PCA Plot'''
             # Create figure with 4 rows and 5 columns
@@ -531,7 +541,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -548,13 +558,13 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC averaging')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.svg"), format='svg')
             plt.close()
 
             '''Difference of true vs approx over time'''
             diff_av = np.mean(uall, axis=3) - approx_u
-            diff_av = np.mean(np.abs(diff_av), axis=(1,2))
-            plt.scatter(np.arange(self.run_len), diff_av, s=1)
+            diff_av2 = np.mean(np.abs(diff_av), axis=(1,2))
+            plt.scatter(np.arange(self.run_len), diff_av2, s=1)
             ax = plt.gca()
             ax.spines['top'].set_visible(False) 
             ax.spines['right'].set_visible(False)
@@ -562,7 +572,7 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.svg"), format='svg')
             plt.close()
 
             '''Plot the gradient flow in PC1-PC2 space. Truncated PC approximation.'''
@@ -630,7 +640,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -646,13 +656,13 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC truncation')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.svg"), format='svg')
             plt.close()
 
             '''Difference of true vs approx over time'''
             diff_tr = np.mean(uall, axis=3) - approx_u
-            diff_tr = np.mean(np.abs(diff_tr), axis=(1,2))
-            plt.scatter(np.arange(self.run_len), diff_tr, s=1)
+            diff_tr2 = np.mean(np.abs(diff_tr), axis=(1,2))
+            plt.scatter(np.arange(self.run_len), diff_tr2, s=1)
             ax = plt.gca()
             ax.spines['top'].set_visible(False) 
             ax.spines['right'].set_visible(False)
@@ -660,11 +670,11 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.svg"), format='svg')
             plt.close()
 
-            # Scatter of truncate vs averaged error
-            plt.scatter(diff_av[self.fixation_len:], diff_tr[self.fixation_len:], s=1)
+            '''Scatter of truncate vs averaged error'''
+            plt.scatter(np.abs(diff_av[self.fixation_len:]), np.abs(diff_tr[self.fixation_len:]), s=1)
             ax = plt.gca()
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -673,8 +683,9 @@ class RNN(nn.Module):
             plt.xlabel('averaged error')
             plt.ylabel('truncated error')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.svg"), format='svg')
             plt.close()
+            
             
 
     '''Utility Functions'''
