@@ -30,11 +30,11 @@ N_CELL = 10
 # Training Hyperparameters
 N_EPOCHS = 5000
 LEARNING_RATE = 0.002
-N_MODELS = 100
+N_MODELS = 1000
 
 
 '''~~~      Varying Model Params        ~~~'''
-rank_arr = np.linspace(1, 10, num=10).astype(int)        
+rank_arr = np.linspace(1, 9, num=9).astype(int)        
 print("Training on ranks:")
 print(rank_arr)
 varying_var = 'rank'
@@ -77,12 +77,8 @@ for i in range(len(rank_arr)):
         model.eval()
         acc = model.test(stimuli, labels, p=False)
         indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-        if len(indices) > 0:
-            indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
-            model.plot_PCAs(indices, stimuli)
-            model.forward(stimuli)
-            model.plot_abs_activity(indices, stimuli)
-            model.plot_drs(indices, stimuli)
+        if len(indices) >= 3:
+            model.participation_ratio(stimuli, labels)
             
             if sum(acc.eq(1))/N_MODELS >= 0.5:
                 with open(f'Models/{varying_var}/{model_name}/Successful.txt', 'w') as file:

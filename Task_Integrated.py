@@ -7,7 +7,7 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Baseline Model'
+model_name = 'Baseline Model 2'
 N_Models = 100
 N_CELL = 10
 

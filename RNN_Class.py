@@ -273,17 +273,23 @@ class RNN(nn.Module):
         if test_labels.shape == torch.Size([4, 2, 2]):
             labels = test_labels[:,1,0].long()
         self.eval()
-        with torch.no_grad():
-            # Forward pass
-            rm, rs = self.forward(test_data)
+        trials = 100
+        rs_all = torch.zeros([trials, self.response_len, 4, self.N_Models, 2], device=self.device)
+        for i in range(trials):
+            if p:
+                progress_bar(trials, i, time(), f"Trialing (Test)...")
+            _, rs_all[i] = self.forward(test_data)
+            
 
+        with torch.no_grad():
             # Get predictions
-            predictions = torch.argmax(torch.softmax(rs, dim=-1), dim=-1).float() # [timesteps, cases, models]
-            labels = labels.view(1, 4, 1).repeat(rs.shape[0], 1, self.N_Models)
+            predictions = torch.argmax(torch.softmax(rs_all, dim=-1), dim=-1).float() # [trials, timesteps, cases, models]
+            predictions = torch.mean(predictions, axis=0)
+            labels = labels.view(1, 4, 1).repeat(self.response_len, 1, self.N_Models)
 
             # Calculate accuracy
             correct_predictions = torch.eq(predictions.int(), labels).sum(dim=(0,1))
-            accuracy = correct_predictions / (4*rs.shape[0])
+            accuracy = correct_predictions / (4*self.response_len)
 
             # Print results
             labels = test_labels[:,1,0].long()
@@ -327,7 +333,7 @@ class RNN(nn.Module):
         ax2.spines['top'].set_visible(False) 
         ax2.spines['left'].set_visible(False)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.svg"), format='svg')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"), format='png')
         plt.close()
 
 
@@ -373,7 +379,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"), format='png')
             plt.close()
 
 
@@ -418,7 +424,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"), format='png')
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -427,6 +433,11 @@ class RNN(nn.Module):
         cs = ['red', 'cyan', 'palegreen', 'plum']
         self.dms_task_epochs(rand=False)
         trials = 100
+        uall_models = np.zeros([self.run_len, 4, self.N_Models, self.N_cell, trials])
+        for i in range(trials):
+            self.forward(stimuli)
+            uall_models[:,:,:,:,i] = torch.squeeze(self.activities).cpu().detach().numpy()
+
         for ind in inds:
             try:
                 os.makedirs(os.path.join(self.dir,f'Index_{ind}'), exist_ok=False)
@@ -437,10 +448,9 @@ class RNN(nn.Module):
             W = np.squeeze(self.rec_weights[ind,:,:].cpu().detach().numpy())
             b = np.squeeze(self.rec_biases[ind,:,:].cpu().detach().numpy())
             Win = np.squeeze(self.inp_weights[ind,:,:].cpu().detach().numpy())
-            uall = np.zeros([self.run_len, 4, self.N_cell, trials])
-            for i in range(trials):
-                self.forward(stimuli)
-                uall[:,:,:,i] = torch.squeeze(self.activities[:, :, ind, :]).cpu().detach().numpy() # Match axes  
+            Wout = np.squeeze(self.out_weights[ind,:,:].cpu().detach().numpy())
+            uall = uall_models[:,:,ind,:,:]
+           
             # PCA
             cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
             w, v = np.linalg.eig(cov)
@@ -467,7 +477,7 @@ class RNN(nn.Module):
             ax.spines['right'].set_visible(False)
             plt.xlabel('PC Index')
             plt.ylabel(r'% Explained Variance')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_explained_variance_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_explained_variance_{ind}.png"), format='png')
             plt.clf()
 
             def log_abs_grad(h):
@@ -484,6 +494,17 @@ class RNN(nn.Module):
             abs_grad_cases = np.array([log_abs_grad(np.array([0,1])),      # A
                                        log_abs_grad(np.array([1,0])),      # B
                                        log_abs_grad(np.array([0,0])),])    # -
+            
+            # '''Decision Boundary'''
+            # predictions = np.zeros([100,100])
+            # for i in range(100):
+            #     for j in range(100):
+            #         pc1 = pc1axis[i]
+            #         pc2 = pc2axis[j]
+            #         u = pc1*v[:,0] + pc2*v[:,1]
+            #         output = Wout@u
+            #         predictions[i,j] = np.argmax(output)
+
 
             '''PCA Plot'''
             # Create figure with 4 rows and 5 columns
@@ -529,6 +550,12 @@ class RNN(nn.Module):
                               vmax=np.max(abs_grad_cases))
                     ax.set_xlabel(str(s)) 
 
+                    # # Decision boundary
+                    # if stage == 'Response':
+                    #     xx, yy = np.meshgrid(pc1axis, pc2axis)
+                    #     ax.contour(xx, yy, predictions, levels=[0.5], colors='black')
+
+
                 # Set stimulus labels
                 axes[trial, 0].set_ylabel(tasks[trial], rotation=0, labelpad=20, fontsize=16)
 
@@ -541,7 +568,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.png"), format='png')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -558,7 +585,7 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC averaging')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.png"), format='png')
             plt.close()
 
             '''Difference of true vs approx over time'''
@@ -572,7 +599,7 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.png"), format='png')
             plt.close()
 
             '''Plot the gradient flow in PC1-PC2 space. Truncated PC approximation.'''
@@ -640,7 +667,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.png"), format='png')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -656,7 +683,7 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC truncation')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.png"), format='png')
             plt.close()
 
             '''Difference of true vs approx over time'''
@@ -670,7 +697,7 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.png"), format='png')
             plt.close()
 
             '''Scatter of truncate vs averaged error'''
@@ -683,9 +710,58 @@ class RNN(nn.Module):
             plt.xlabel('averaged error')
             plt.ylabel('truncated error')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.svg"), format='svg')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.png"), format='png')
             plt.close()
             
+    
+    def participation_ratio(self, stimuli, labels, p=False):
+        '''Calculate the Participation Ratio for each model and plots histogram.
+        Only for successfully trained models.'''
+        # Test model
+        acc = self.test(stimuli, labels, p=p)
+        indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
+
+        # Collect trial data
+        self.dms_task_epochs(rand=False)
+        trials = 100
+        uall_models = np.zeros([self.run_len, 4, self.N_Models, self.N_cell, trials])
+        for i in range(trials):
+            if p:
+                progress_bar(trials, i, time(), f"Trialing (Participation Ratio)...")
+            self.forward(stimuli)
+            uall_models[:,:,:,:,i] = torch.squeeze(self.activities).cpu().detach().numpy()
+
+        # Calculate PCA and Participation Ratio (PR)
+        PRs = np.zeros(self.N_Models)
+        for ind in indices:
+            uall = np.squeeze(uall_models[:,:,ind,:,:])
+            cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
+            w, v = np.linalg.eig(cov)
+            PRs[ind] = (np.sum(w) ** 2) / np.sum(w ** 2)
+        
+        # Plot Participation ratios by index
+        plt.bar(np.arange(self.N_Models), PRs)
+        plt.xlabel('Model Index')
+        plt.ylabel('Participation Ratio')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.png"), format='png')
+        plt.close()
+
+        # Histogram of participation ratios
+        non_zero_PRs = PRs[PRs != 0]
+        plt.hist(non_zero_PRs, bins=20)
+        plt.xlabel('Participation Ratio')
+        plt.ylabel('Frequency')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.png"), format='png')
+        plt.close()
+
+        # Min, Median, Max participation ratio plots
+        sorted_indices = np.argsort(non_zero_PRs)
+        inds = [sorted_indices[0], sorted_indices[len(sorted_indices) // 2], sorted_indices[-1]]
+        self.plot_PCAs(inds, stimuli)
+        # Activity Plots
+        self.plot_abs_activity(inds, stimuli)
+        self.plot_drs(inds, stimuli)
+
             
 
     '''Utility Functions'''
@@ -769,7 +845,7 @@ class RNN(nn.Module):
 def progress_bar(total, current, start_time, info=""):
     elapsed_time = time() - start_time
     bar_length = 40
-    progress = (current+1) / total
+    progress = int(current+1) / int(total)
     arrow = '-' * int(round(progress * bar_length)-1) + '>'
     spaces = ' ' * (bar_length - len(arrow))
     total_time = elapsed_time / progress
