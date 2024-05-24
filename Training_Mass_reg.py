@@ -28,7 +28,7 @@ w_var = 0.01
 # Training Hyperparameters
 N_EPOCHS = 5000
 LEARNING_RATE = 0.002
-N_MODELS = 1000
+N_MODELS = 100
 
 
 '''~~~      Varying Model Params        ~~~'''
