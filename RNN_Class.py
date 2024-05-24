@@ -748,7 +748,7 @@ class RNN(nn.Module):
 
         # Histogram of participation ratios
         non_zero_PRs = PRs[PRs != 0]
-        plt.hist(non_zero_PRs, bins=20)
+        plt.hist(non_zero_PRs, bins=10)
         plt.xlabel('Participation Ratio')
         plt.ylabel('Frequency')
         plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.png"), format='png')
