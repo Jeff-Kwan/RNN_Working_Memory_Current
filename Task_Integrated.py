@@ -7,7 +7,7 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Baseline Model 2'
+model_name = 'Baseline Model 3'
 N_Models = 100
 N_CELL = 10
 
@@ -48,17 +48,7 @@ model = RNN(dir='Models', name=model_name)
 
 # Test Model
 model.eval()
-acc = model.test(stimuli, labels, p=False)
-indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-indices = indices[torch.randint(len(indices), size=(2,))] # Random Correct Model(s)
-
-# PCA Plots
-model.plot_PCAs(indices, stimuli)
-
-# Activity Plots
-model.forward(stimuli)
-model.plot_abs_activity(indices, stimuli)
-model.plot_drs(indices, stimuli)
+model.participation_ratio(stimuli, labels, p=True)
 
 
 

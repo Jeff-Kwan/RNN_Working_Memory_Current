@@ -268,12 +268,12 @@ class RNN(nn.Module):
             print('\nTraining Complete. \n')
 
 
-    def test(self, test_data, test_labels, p=True):
+    def test(self, test_data, test_labels, p=True, t=1):
         """Test the model and print accuracy and confusion matrix."""
         if test_labels.shape == torch.Size([4, 2, 2]):
             labels = test_labels[:,1,0].long()
         self.eval()
-        trials = 100
+        trials = t
         rs_all = torch.zeros([trials, self.response_len, 4, self.N_Models, 2], device=self.device)
         for i in range(trials):
             if p:
@@ -718,7 +718,7 @@ class RNN(nn.Module):
         '''Calculate the Participation Ratio for each model and plots histogram.
         Only for successfully trained models.'''
         # Test model
-        acc = self.test(stimuli, labels, p=p)
+        acc = self.test(stimuli, labels, p=p, t=100)
         indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 
         # Collect trial data
