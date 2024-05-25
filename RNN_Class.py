@@ -333,7 +333,7 @@ class RNN(nn.Module):
         ax2.spines['top'].set_visible(False) 
         ax2.spines['left'].set_visible(False)
         plt.tight_layout()
-        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.png"), format='png')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_training_loss.svg"), format='svg')
         plt.close()
 
 
@@ -379,7 +379,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(abs_activities.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_abs_activities_index_{ind}.svg"), format='svg')
             plt.close()
 
 
@@ -424,7 +424,7 @@ class RNN(nn.Module):
             lines = [mlines.Line2D([], [], color='C'+str(i), label=f'Neuron {i}') for i in range(drs.shape[2])]
             fig.legend(handles=lines, loc='lower right')
             plt.tight_layout()
-            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir, f'Index_{ind}', f"{self.name}_drs_index_{ind}.svg"), format='svg')
             plt.close()
 
     def plot_PCAs(self, inds, stimuli):
@@ -477,7 +477,7 @@ class RNN(nn.Module):
             ax.spines['right'].set_visible(False)
             plt.xlabel('PC Index')
             plt.ylabel(r'% Explained Variance')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_explained_variance_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_explained_variance_{ind}.svg"), format='svg')
             plt.clf()
 
             def log_abs_grad(h):
@@ -568,7 +568,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -585,7 +585,7 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC averaging')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_approx_{ind}.svg"), format='svg')
             plt.close()
 
             '''Difference of true vs approx over time'''
@@ -599,7 +599,7 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.svg"), format='svg')
             plt.close()
 
             '''Plot the gradient flow in PC1-PC2 space. Truncated PC approximation.'''
@@ -667,7 +667,7 @@ class RNN(nn.Module):
             fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=2)
             cbar = fig.colorbar(im, ax=axes.ravel().tolist(), location='right')
             cbar.set_label('log|dr/dt|', rotation=0, labelpad=20, loc='center', fontsize=15)
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_tr_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter Plot to justify approximation'''
@@ -683,7 +683,7 @@ class RNN(nn.Module):
             plt.xlabel('approximated neuron activities by PC truncation')
             plt.ylabel('recorded neuron activities')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_approx_{ind}.svg"), format='svg')
             plt.close()
 
             '''Difference of true vs approx over time'''
@@ -697,7 +697,7 @@ class RNN(nn.Module):
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
             plt.xlabel('timesteps')
             plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter of truncate vs averaged error'''
@@ -710,7 +710,7 @@ class RNN(nn.Module):
             plt.xlabel('averaged error')
             plt.ylabel('truncated error')
             plt.axis('equal')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.png"), format='png')
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_vs_truncated_{ind}.svg"), format='svg')
             plt.close()
             
     
@@ -741,17 +741,23 @@ class RNN(nn.Module):
         
         # Plot Participation ratios by index
         plt.bar(np.arange(self.N_Models), PRs)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False) 
+        ax.spines['right'].set_visible(False)
         plt.xlabel('Model Index')
         plt.ylabel('Participation Ratio')
-        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.png"), format='png')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.svg"), format='svg')
         plt.close()
 
-        # Histogram of participation ratios
+        # # Histogram of participation ratios
         non_zero_PRs = PRs[PRs != 0]
         plt.hist(non_zero_PRs, bins=10)
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False) 
+        ax.spines['right'].set_visible(False)
         plt.xlabel('Participation Ratio')
         plt.ylabel('Frequency')
-        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.png"), format='png')
+        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.svg"), format='svg')
         plt.close()
 
         # Min, Median, Max participation ratio plots
@@ -761,6 +767,8 @@ class RNN(nn.Module):
         # Activity Plots
         self.plot_abs_activity(inds, stimuli)
         self.plot_drs(inds, stimuli)
+
+        return np.mean(non_zero_PRs), np.var(non_zero_PRs)
 
             
 
