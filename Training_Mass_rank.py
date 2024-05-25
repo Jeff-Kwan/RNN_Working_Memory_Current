@@ -30,7 +30,7 @@ N_CELL = 10
 # Training Hyperparameters
 N_EPOCHS = 5000
 LEARNING_RATE = 0.002
-N_MODELS = 1000
+N_MODELS = 500
 
 
 '''~~~      Varying Model Params        ~~~'''

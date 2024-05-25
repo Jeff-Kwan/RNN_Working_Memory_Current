@@ -245,7 +245,7 @@ class RNN(nn.Module):
             total_loss = loss.item()
 
             self.training_losses.append(total_loss)
-            self.acc.append(torch.mean(self.test(train_data, train_labels, p=False)))
+            self.acc.append(torch.mean(self.test(train_data, train_labels, p=False)).cpu().numpy())
             save_delay -= 1
 
             # Progress bar
@@ -767,13 +767,13 @@ class RNN(nn.Module):
     '''Utility Functions'''
     def to_gpu(self):
         # At this training scale CPU > GPU
-        device = 'cpu'#torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         for name, param in self.named_parameters():
             param.data = param.data.to(device)
         for name, buffer in self.named_buffers():
             buffer.data = buffer.data.to(device)
         self.device = device
-        #print(f'Running on {device}')
+        print(f'Running on {device}')
 
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
