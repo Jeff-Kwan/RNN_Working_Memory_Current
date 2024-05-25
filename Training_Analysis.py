@@ -17,22 +17,24 @@ labels = torch.tensor([[[0,1], [1,0]],
                        [[1,0], [1,0]]], dtype=torch.float)
 
 
-dir = 'Models\Batch 2 Data - Gaussian\w_init'
-varying_param = 'w_init'
-subfolders_num = len(os.listdir(dir))
-for i in range(subfolders_num):
-    # Model name
-    model_name = f'{varying_param} - Model {i+1} of {subfolders_num}'
+dir = 'Models/Batch 2 Data - Gaussian'
+params = ['w_init', 'reg', 'rank', 'N_cell']
+#varying_param = 'w_init'
 
-    '''~~~      Model Evaluation    ~~~'''
-    try:
-        with open(f'Models/{varying_param}/{model_name}/Successful.txt', 'r') as file:
-            model = RNN(dir=f'Models/{varying_param}', name=model_name)
-            model.eval()
-            model.participation_ratio(stimuli, labels)
+for varying_param in params:
+    subfolders_num = len(os.listdir(dir+f'/{varying_param}'))
+    for i in range(subfolders_num):
+        # Model name
+        model_name = f'{varying_param} - Model {i+1} of {subfolders_num}'
+        '''~~~      Model Evaluation    ~~~'''
+        try:
+            with open(dir+f'/{varying_param}/{model_name}/Successful.txt', 'r') as file:
+                model = RNN(dir=dir+f'/{varying_param}', name=model_name)
+                model.eval()
+                model.participation_ratio(stimuli, labels)
 
-    except FileNotFoundError:
-            pass
+        except FileNotFoundError:
+                pass
 
-    # Time Analysis
-    progress_bar(subfolders_num, i, start_time)
+        # Time Analysis
+        progress_bar(subfolders_num, i, start_time)

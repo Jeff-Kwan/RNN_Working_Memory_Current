@@ -714,16 +714,16 @@ class RNN(nn.Module):
             plt.close()
             
     
-    def participation_ratio(self, stimuli, labels, p=False):
+    def participation_ratio(self, stimuli, labels, p=False, t=100):
         '''Calculate the Participation Ratio for each model and plots histogram.
         Only for successfully trained models.'''
         # Test model
-        acc = self.test(stimuli, labels, p=p, t=100)
+        acc = self.test(stimuli, labels, p=p, t=t)
         indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 
         # Collect trial data
         self.dms_task_epochs(rand=False)
-        trials = 100
+        trials = t
         uall_models = np.zeros([self.run_len, 4, self.N_Models, self.N_cell, trials])
         for i in range(trials):
             if p:
@@ -773,7 +773,7 @@ class RNN(nn.Module):
         for name, buffer in self.named_buffers():
             buffer.data = buffer.data.to(device)
         self.device = device
-        print(f'Running on {device}')
+        #print(f'Running on {device}')
 
     def save_model(self):
         """Save the model's state_dict and a description at the specified path."""
