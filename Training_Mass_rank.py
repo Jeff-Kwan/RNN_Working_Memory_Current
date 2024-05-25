@@ -34,7 +34,7 @@ N_MODELS = 500
 
 
 '''~~~      Varying Model Params        ~~~'''
-rank_arr = np.linspace(1, 9, num=9).astype(int)        
+rank_arr = np.linspace(1, 10, num=10).astype(int)       
 print("Training on ranks:")
 print(rank_arr)
 varying_var = 'rank'

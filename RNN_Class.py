@@ -47,7 +47,7 @@ class RNN(nn.Module):
 
         # Recurrent parameters
         self.rank = rank
-        if rank:
+        if rank and rank < N_CELL:
             self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,np.sqrt(0.1)))
             self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,np.sqrt(0.1)))
         else:
@@ -714,7 +714,7 @@ class RNN(nn.Module):
             plt.close()
             
     
-    def participation_ratio(self, stimuli, labels, p=False, t=100):
+    def participation_ratio(self, stimuli, labels, p=False, t=10):
         '''Calculate the Participation Ratio for each model and plots histogram.
         Only for successfully trained models.'''
         # Test model
@@ -749,7 +749,7 @@ class RNN(nn.Module):
         plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.svg"), format='svg')
         plt.close()
 
-        # # Histogram of participation ratios
+        # Histogram of participation ratios
         non_zero_PRs = PRs[PRs != 0]
         plt.hist(non_zero_PRs, bins=10)
         ax = plt.gca()

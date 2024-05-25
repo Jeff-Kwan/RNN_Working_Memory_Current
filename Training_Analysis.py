@@ -39,7 +39,7 @@ for varying_param in params:
         try:
             model = RNN(dir=dir+f'/{varying_param}', name=model_name)
             model.eval()
-            PR_mean[i], PR_var[i] = model.participation_ratio(stimuli, labels, p=False, t=50)
+            PR_mean[i], PR_var[i] = model.participation_ratio(stimuli, labels, p=False, t=2)
         except:
             pass
 
@@ -47,6 +47,9 @@ for varying_param in params:
         progress_bar(subfolders_num, i, start_time, f'{varying_param}')
 
     '''~~~ Participation Ratio Statistics ~~~'''
+    mask = PR_mean != 0
+    PR_mean_nonzero = PR_mean[mask]
+    param_range_nonzero = np.array(param_ranges[varying_param])[mask]
     def plot_with_error_bars(x, mean, var, ax, color):
         std_error = np.sqrt(var) / np.sqrt(len(x))
         ax.errorbar(x, mean, yerr=std_error, color=color, fmt='-o')
@@ -65,7 +68,10 @@ for varying_param in params:
     plt.close()
 
     # Calculate correlation and p-value for each parameter
-    corr, p_value = stats.pearsonr(PR_mean, param_ranges[varying_param])
+    if varying_param == 'w_init' or varying_param == 'reg':
+        corr, p_value = stats.pearsonr(PR_mean, np.log(param_ranges[varying_param]))
+    else:
+        corr, p_value = stats.pearsonr(PR_mean, param_ranges[varying_param])
     #print(f'\nCorrelation with {varying_param}: {format(corr, ".3g")}, p-value: {format(p_value, ".3g")}')
     with open(f'{dir}/correlation_analysis.txt', 'a') as f:
         f.write(f'\nCorrelation with {varying_param}: {format(corr, ".3g")}, p-value: {format(p_value, ".3g")}')
