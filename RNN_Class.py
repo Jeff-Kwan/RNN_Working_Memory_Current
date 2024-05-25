@@ -146,8 +146,8 @@ class RNN(nn.Module):
         Expected input x to be of dimensions: [2, N_stim]'''
         # Check input dimensions, Extract sample and test stimuli
         assert x.shape == (4, 2, self.N_stim), "Wrong input dimensions."
-        x_sample = x[:, 0, :].unsqueeze(-1).unsqueeze(1) #[4, 1, self.N_stim,1]
-        x_test = x[:, 1, :].unsqueeze(-1).unsqueeze(1) #[4, 1, self.N_stim,1]
+        x_sample = x[:, 0, :].unsqueeze(-1).unsqueeze(1).to(self.device) #[4, 1, self.N_stim,1]
+        x_test = x[:, 1, :].unsqueeze(-1).unsqueeze(1).to(self.device) #[4, 1, self.N_stim,1]
 
         # Init firing rates matrix, dt/tau
         r = torch.zeros([4, self.N_Models, self.N_cell, 1], device=self.device)
@@ -271,7 +271,7 @@ class RNN(nn.Module):
     def test(self, test_data, test_labels, p=True, t=1):
         """Test the model and print accuracy and confusion matrix."""
         if test_labels.shape == torch.Size([4, 2, 2]):
-            labels = test_labels[:,1,0].long()
+            labels = test_labels[:,1,0].long().to(self.device)
         self.eval()
         trials = t
         rs_all = torch.zeros([trials, self.response_len, 4, self.N_Models, 2], device=self.device)
@@ -351,7 +351,7 @@ class RNN(nn.Module):
                 activities = self.activities
 
             # Compute the absolute value of the activities
-            abs_activities = torch.abs(activities).detach().numpy()
+            abs_activities = torch.abs(activities).detach().cpu().numpy()
 
             # Define the splits
             splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
@@ -396,7 +396,7 @@ class RNN(nn.Module):
                 drs = self.drs
 
             # Compute the absolute value of the activities
-            drs = drs.detach().numpy()
+            drs = drs.detach().cpu().numpy()
 
             # Define the splits
             splits = [0, self.fixation_len, self.sample_len, self.delay_len, self.test_len, self.response_len]
@@ -718,7 +718,7 @@ class RNN(nn.Module):
         '''Calculate the Participation Ratio for each model and plots histogram.
         Only for successfully trained models.'''
         # Test model
-        acc = self.test(stimuli, labels, p=p, t=100)
+        acc = self.test(stimuli, labels, p=p, t=10)
         indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 
         # Collect trial data

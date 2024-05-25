@@ -7,7 +7,7 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Baseline Model 3'
+model_name = 'Debug trial'
 N_Models = 100
 N_CELL = 10
 
@@ -18,7 +18,7 @@ w_var = 0.01         # Input Weight variance, 10x-100x larger than 0.0001 (rec_w
 rank = None
 
 # Training Hyperparameters
-N_EPOCHS = 5000
+N_EPOCHS = 500
 LEARNING_RATE = 0.002
 
 
