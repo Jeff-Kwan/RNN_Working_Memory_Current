@@ -29,15 +29,7 @@ for i in range(subfolders_num):
         with open(f'Models/{varying_param}/{model_name}/Successful.txt', 'r') as file:
             model = RNN(dir=f'Models/{varying_param}', name=model_name)
             model.eval()
-            acc = model.test(stimuli, labels, p=False)
-            #print(f'Number of successful models: {sum(acc.eq(1))}')
-            indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
-            if len(indices) > 0:
-                indices = indices[torch.randint(len(indices), size=(1,))] # Random Correct Model(s)
-                model.plot_PCAs(indices, stimuli)
-                model.forward(stimuli)
-                model.plot_abs_activity(indices, stimuli)
-                model.plot_drs(indices, stimuli)
+            model.participation_ratio(stimuli, labels)
 
     except FileNotFoundError:
             pass
