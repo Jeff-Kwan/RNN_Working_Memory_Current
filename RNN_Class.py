@@ -768,7 +768,7 @@ class RNN(nn.Module):
         self.plot_abs_activity(inds, stimuli)
         self.plot_drs(inds, stimuli)
 
-        return np.mean(non_zero_PRs), np.var(non_zero_PRs)
+        return np.mean(non_zero_PRs), np.var(non_zero_PRs), PRs
 
             
 

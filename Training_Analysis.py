@@ -21,7 +21,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 
 
 dir = 'Models/Batch 2 Data - Gaussian'
-params = ['w_init', 'reg', 'N_cell', 'rank']
+params = ['w_init', 'reg', 'rank', 'N_cell']
 param_ranges = {'w_init': np.logspace(-4, 0, num=5),
                 'reg': np.logspace(-5, 0, num=6),
                 'rank': np.linspace(1, 10, num=10).astype(int),
@@ -29,9 +29,10 @@ param_ranges = {'w_init': np.logspace(-4, 0, num=5),
 
 for varying_param in params:
     subfolders_num = len(param_ranges[varying_param])#len(os.listdir(dir+f'/{varying_param}'))
-
+    N_models = 100
     PR_mean = np.zeros(subfolders_num)
     PR_var = np.zeros(subfolders_num)
+    PRs = np.zeros((subfolders_num, N_models))
     for i in range(subfolders_num):
         # Model name
         model_name = f'{varying_param} - Model {i+1} of {subfolders_num}'
@@ -39,7 +40,7 @@ for varying_param in params:
         try:
             model = RNN(dir=dir+f'/{varying_param}', name=model_name)
             model.eval()
-            PR_mean[i], PR_var[i] = model.participation_ratio(stimuli, labels, p=False, t=2)
+            PR_mean[i], PR_var[i], PRs[i] = model.participation_ratio(stimuli, labels, p=False, t=2)
         except:
             pass
 
@@ -68,11 +69,12 @@ for varying_param in params:
     plt.close()
 
     # Calculate correlation and p-value for each parameter
+    param = np.ravel(np.tile(param_ranges[varying_param][:, np.newaxis], (1, N_models)))
+    PRs = np.ravel(PRs)
     if varying_param == 'w_init' or varying_param == 'reg':
-        corr, p_value = stats.pearsonr(PR_mean, np.log(param_ranges[varying_param]))
+        corr, p_value = stats.pearsonr(PRs, np.log(param))
     else:
-        corr, p_value = stats.pearsonr(PR_mean, param_ranges[varying_param])
-    #print(f'\nCorrelation with {varying_param}: {format(corr, ".3g")}, p-value: {format(p_value, ".3g")}')
+        corr, p_value = stats.pearsonr(PRs, param)
     with open(f'{dir}/correlation_analysis.txt', 'a') as f:
         f.write(f'\nCorrelation with {varying_param}: {format(corr, ".3g")}, p-value: {format(p_value, ".3g")}')
 
