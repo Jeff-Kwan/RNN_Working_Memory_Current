@@ -767,6 +767,10 @@ class RNN(nn.Module):
         # Activity Plots
         self.plot_abs_activity(inds, stimuli)
         self.plot_drs(inds, stimuli)
+        with open(f'{self.dir}/PR_stats.txt', 'w') as f:
+            f.write(f'\nMin Index = {inds[0]}, PR = {non_zero_PRs[inds[0]]}')
+            f.write(f'\nMedian Index = {inds[1]}, PR = {non_zero_PRs[inds[1]]}')
+            f.write(f'\nMax Index = {inds[2]}, PR = {non_zero_PRs[inds[2]]}')
 
         return np.mean(non_zero_PRs), np.var(non_zero_PRs), PRs
 
