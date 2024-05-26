@@ -21,7 +21,7 @@ labels = torch.tensor([[[0,1], [1,0]],
 
 
 dir = 'Models/Batch 2 Data - Gaussian'
-params = ['w_init', 'reg']#, 'rank', 'N_cell']
+params = ['w_init', 'reg', 'rank', 'N_cell']
 param_ranges = {'w_init': np.logspace(-4, 0, num=5),
                 'reg': np.logspace(-5, 0, num=6),
                 'rank': np.linspace(1, 10, num=10).astype(int),
@@ -38,6 +38,8 @@ for varying_param in params:
     PR_var = np.zeros(subfolders_num)
     PRs = np.zeros((subfolders_num, N_models))
     for i in range(subfolders_num):
+        if varying_param == 'rank' and i == subfolders_num-1:
+            continue
         # Model name
         model_name = f'{varying_param} - Model {i+1} of {subfolders_num}'
         '''~~~      Model Evaluation    ~~~'''
