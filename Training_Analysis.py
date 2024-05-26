@@ -69,14 +69,22 @@ for varying_param in params:
     plt.close()
 
     # Calculate correlation and p-value for each parameter
+    if varying_param == 'rank':
+        t_stat, p_value_t_test = stats.ttest_ind(PRs[0][(PRs[0] != 0) & (PRs[-2] != 0)], PRs[-2][(PRs[0] != 0) & (PRs[-2] != 0)])
+    else:
+        t_stat, p_value_t_test = stats.ttest_ind(PRs[0][(PRs[0] != 0) & (PRs[-1] != 0)], PRs[-1][(PRs[0] != 0) & (PRs[-1] != 0)])
     param = np.ravel(np.tile(param_ranges[varying_param][:, np.newaxis], (1, N_models)))
     PRs = np.ravel(PRs)
+    mask = PRs != 0
+    PRs_nonzero = PRs[mask]
+    param_nonzero = param[mask]
     if varying_param == 'w_init' or varying_param == 'reg':
-        corr, p_value = stats.pearsonr(PRs, np.log(param))
+        corr, p_value = stats.pearsonr(PRs_nonzero, np.log(param_nonzero))
     else:
-        corr, p_value = stats.pearsonr(PRs, param)
+        corr, p_value = stats.pearsonr(PRs_nonzero, param_nonzero)
     with open(f'{dir}/correlation_analysis.txt', 'a') as f:
         f.write(f'\nCorrelation with {varying_param}: {format(corr, ".3g")}, p-value: {format(p_value, ".3g")}')
+        f.write(f'\nT-test with {varying_param}: {format(t_stat, ".3g")}, p-value: {format(p_value_t_test, ".3g")}')
 
 
 # Time Elapsed

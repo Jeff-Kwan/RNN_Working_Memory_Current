@@ -739,38 +739,38 @@ class RNN(nn.Module):
             w, v = np.linalg.eig(cov)
             PRs[ind] = (np.sum(w) ** 2) / np.sum(w ** 2)
         
-        # Plot Participation ratios by index
-        plt.bar(np.arange(self.N_Models), PRs)
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False) 
-        ax.spines['right'].set_visible(False)
-        plt.xlabel('Model Index')
-        plt.ylabel('Participation Ratio')
-        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.svg"), format='svg')
-        plt.close()
+        # # Plot Participation ratios by index
+        # plt.bar(np.arange(self.N_Models), PRs)
+        # ax = plt.gca()
+        # ax.spines['top'].set_visible(False) 
+        # ax.spines['right'].set_visible(False)
+        # plt.xlabel('Model Index')
+        # plt.ylabel('Participation Ratio')
+        # plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio.svg"), format='svg')
+        # plt.close()
 
         # Histogram of participation ratios
         non_zero_PRs = PRs[PRs != 0]
-        plt.hist(non_zero_PRs, bins=10)
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False) 
-        ax.spines['right'].set_visible(False)
-        plt.xlabel('Participation Ratio')
-        plt.ylabel('Frequency')
-        plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.svg"), format='svg')
-        plt.close()
+        # plt.hist(non_zero_PRs, bins=10)
+        # ax = plt.gca()
+        # ax.spines['top'].set_visible(False) 
+        # ax.spines['right'].set_visible(False)
+        # plt.xlabel('Participation Ratio')
+        # plt.ylabel('Frequency')
+        # plt.savefig(os.path.join(self.dir, f"{self.name}_participation_ratio_hist.svg"), format='svg')
+        # plt.close()
 
-        # Min, Median, Max participation ratio plots
-        sorted_indices = np.argsort(non_zero_PRs)
-        inds = [sorted_indices[0], sorted_indices[len(sorted_indices) // 2], sorted_indices[-1]]
-        self.plot_PCAs(inds, stimuli)
-        # Activity Plots
-        self.plot_abs_activity(inds, stimuli)
-        self.plot_drs(inds, stimuli)
-        with open(f'{self.dir}/PR_stats.txt', 'w') as f:
-            f.write(f'\nMin Index = {inds[0]}, PR = {non_zero_PRs[inds[0]]}')
-            f.write(f'\nMedian Index = {inds[1]}, PR = {non_zero_PRs[inds[1]]}')
-            f.write(f'\nMax Index = {inds[2]}, PR = {non_zero_PRs[inds[2]]}')
+        # # Min, Median, Max participation ratio plots
+        # sorted_indices = np.argsort(non_zero_PRs)
+        # inds = [sorted_indices[0], sorted_indices[len(sorted_indices) // 2], sorted_indices[-1]]
+        # self.plot_PCAs(inds, stimuli)
+        # # Activity Plots
+        # self.plot_abs_activity(inds, stimuli)
+        # self.plot_drs(inds, stimuli)
+        # with open(f'{self.dir}/PR_stats.txt', 'w') as f:
+        #     f.write(f'\nMin Index = {inds[0]}, PR = {non_zero_PRs[inds[0]]}')
+        #     f.write(f'\nMedian Index = {inds[1]}, PR = {non_zero_PRs[inds[1]]}')
+        #     f.write(f'\nMax Index = {inds[2]}, PR = {non_zero_PRs[inds[2]]}')
 
         return np.mean(non_zero_PRs), np.var(non_zero_PRs), PRs
 
