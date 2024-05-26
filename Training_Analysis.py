@@ -44,7 +44,7 @@ for varying_param in params:
         try:
             model = RNN(dir=dir+f'/{varying_param}', name=model_name)
             model.eval()
-            PR_mean[i], PR_var[i], PRs[i] = model.participation_ratio(stimuli, labels, p=False, t=2)
+            PR_mean[i], PR_var[i], PRs[i] = model.participation_ratio(stimuli, labels, p=False, t=10)
         except:
             pass
 
