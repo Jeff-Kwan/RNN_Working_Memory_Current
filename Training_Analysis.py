@@ -21,11 +21,15 @@ labels = torch.tensor([[[0,1], [1,0]],
 
 
 dir = 'Models/Batch 2 Data - Gaussian'
-params = ['w_init', 'reg', 'rank', 'N_cell']
+params = ['w_init', 'reg']#, 'rank', 'N_cell']
 param_ranges = {'w_init': np.logspace(-4, 0, num=5),
                 'reg': np.logspace(-5, 0, num=6),
                 'rank': np.linspace(1, 10, num=10).astype(int),
-                'N_cell': np.linspace(5, 40, num=8).astype(int)  }
+                'N_cell': np.linspace(5, 40, num=8).astype(int)}
+param_str = {'w_init': 'w_in init variance',
+                'reg': 'regularisation strength \u03bb',
+                'rank': 'rank',
+                'N_cell': 'number of neurons'}
 
 for varying_param in params:
     subfolders_num = len(param_ranges[varying_param])#len(os.listdir(dir+f'/{varying_param}'))
@@ -57,7 +61,7 @@ for varying_param in params:
 
     fig, ax1 = plt.subplots()
     plot_with_error_bars(np.array(param_ranges[varying_param]), PR_mean, PR_var, ax1, 'blue')
-    ax1.set_xlabel(varying_param)
+    ax1.set_xlabel(param_str[varying_param])
     ax1.set_ylabel('PR Mean', color='blue')
     ax1.tick_params(axis='y', labelcolor='blue')
     ax1.spines['top'].set_visible(False) 
