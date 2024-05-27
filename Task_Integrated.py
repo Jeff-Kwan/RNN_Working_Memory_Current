@@ -7,8 +7,8 @@ start_time = time()
 
 '''~~~      Model Params        ~~~'''
 # Model name
-model_name = 'Baseline Model'
-N_Models = 500
+model_name = 'Control Model'
+N_Models = 100
 N_CELL = 10
 
 # Model Hyperparameters

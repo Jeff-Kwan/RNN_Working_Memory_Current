@@ -47,11 +47,12 @@ class RNN(nn.Module):
 
         # Recurrent parameters
         self.rank = rank
-        if rank and rank < N_CELL:
-            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,np.sqrt(0.1)))
-            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,np.sqrt(0.1)))
-        else:
-            self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1))
+        # if rank and rank < N_CELL:
+        #     self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,np.sqrt(0.1)))
+        #     self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,np.sqrt(0.1)))
+        # else:
+        #     self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1))
+        self.rec_weights = torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1)
         self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).normal_(0, 0.1))
 
         # Input and output weights
