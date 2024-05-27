@@ -5,7 +5,7 @@ from RNN_Class import RNN
 start_time = time()
 
 # Load Model
-model_name = 'Baseline Model'
+model_name = 'Baseline Model 2'
 model = RNN('Models/', model_name, p=True)
 
 # DMS Data & Run Model
@@ -24,7 +24,6 @@ model.eval()
 # print(f'Number of successful models: {sum(acc.eq(1))}')
 # indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 # indices = indices[torch.randint(len(indices), size=(5,))] # Random Correct Model(s)
-# indices = torch.tensor([53, 65, 79, 84, 89])
 
 # # PCA Plots
 # model.plot_PCAs(indices, stimuli)

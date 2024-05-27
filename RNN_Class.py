@@ -571,7 +571,7 @@ class RNN(nn.Module):
             plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_pca_trajectories_index_av_{ind}.svg"), format='svg')
             plt.close()
 
-            '''Scatter Plot to justify approximation'''
+            # '''Scatter Plot to justify approximation'''
             approx_pc = np.zeros([self.run_len, 4, self.N_cell])
             approx_pc[:,:,0:2] = pcspace[:,:,0:2]
             approx_pc[:,:,2:] = pcmean[None, None, 2:]
@@ -591,16 +591,6 @@ class RNN(nn.Module):
             '''Difference of true vs approx over time'''
             diff_av = np.mean(uall, axis=3) - approx_u
             diff_av2 = np.mean(np.abs(diff_av), axis=(1,2))
-            plt.scatter(np.arange(self.run_len), diff_av2, s=1)
-            ax = plt.gca()
-            ax.spines['top'].set_visible(False) 
-            ax.spines['right'].set_visible(False)
-            for split in cumulative_splits:
-                ax.axvline(x=split, color='lightgrey', linestyle='--')
-            plt.xlabel('timesteps')
-            plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_averaged_pc_over_time_{ind}.svg"), format='svg')
-            plt.close()
 
             '''Plot the gradient flow in PC1-PC2 space. Truncated PC approximation.'''
             def log_abs_grad2(h):
@@ -687,17 +677,22 @@ class RNN(nn.Module):
             plt.close()
 
             '''Difference of true vs approx over time'''
+            plt.close()
             diff_tr = np.mean(uall, axis=3) - approx_u
             diff_tr2 = np.mean(np.abs(diff_tr), axis=(1,2))
-            plt.scatter(np.arange(self.run_len), diff_tr2, s=1)
+            plt.scatter(np.arange(self.run_len), diff_av2, s=3, label='averaged est.')
+            plt.scatter(np.arange(self.run_len), diff_tr2, s=3, label='truncated est.')
             ax = plt.gca()
+            ax.figure.set_size_inches(7, 5)
             ax.spines['top'].set_visible(False) 
             ax.spines['right'].set_visible(False)
             for split in cumulative_splits:
                 ax.axvline(x=split, color='lightgrey', linestyle='--')
-            plt.xlabel('timesteps')
-            plt.ylabel('averaged estimation error')
-            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_truncated_pc_over_time_{ind}.svg"), format='svg')
+            plt.xlabel('timesteps', fontsize=12)
+            plt.ylabel('averaged estimation error', fontsize=12)
+            plt.legend(fontsize=11, loc='upper right')
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.dir,f'Index_{ind}',f"{self.name}_error_pc_over_time_{ind}.svg"), format='svg')
             plt.close()
 
             '''Scatter of truncate vs averaged error'''
@@ -761,16 +756,17 @@ class RNN(nn.Module):
         plt.close()
 
         # Min, Median, Max participation ratio plots
+        non_zero_indices = np.argwhere(PRs != 0).flatten()
+        non_zero_PRs = PRs[non_zero_indices]
         sorted_indices = np.argsort(non_zero_PRs)
-        inds = [sorted_indices[0], sorted_indices[len(sorted_indices) // 2], sorted_indices[-1]]
+        inds = [non_zero_indices[sorted_indices[0]], non_zero_indices[sorted_indices[len(sorted_indices) // 2]], non_zero_indices[sorted_indices[-1]]]
         self.plot_PCAs(inds, stimuli)
-        # Activity Plots
         self.plot_abs_activity(inds, stimuli)
         self.plot_drs(inds, stimuli)
         with open(f'{self.dir}/PR_stats.txt', 'w') as f:
-            f.write(f'\nMin Index = {inds[0]}, PR = {non_zero_PRs[inds[0]]}')
-            f.write(f'\nMedian Index = {inds[1]}, PR = {non_zero_PRs[inds[1]]}')
-            f.write(f'\nMax Index = {inds[2]}, PR = {non_zero_PRs[inds[2]]}')
+            f.write(f'\nMin Index = {inds[0]}, PR = {PRs[inds[0]]}')
+            f.write(f'\nMedian Index = {inds[1]}, PR = {PRs[inds[1]]}')
+            f.write(f'\nMax Index = {inds[2]}, PR = {PRs[inds[2]]}')
 
         return np.mean(non_zero_PRs), np.var(non_zero_PRs), PRs
 
