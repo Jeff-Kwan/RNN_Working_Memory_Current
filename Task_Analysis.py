@@ -24,12 +24,15 @@ acc = model.test(stimuli, labels, p=True)
 # print(f'Number of successful models: {sum(acc.eq(1))}')
 # indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 # indices = indices[torch.randint(len(indices), size=(5,))] # Random Correct Model(s)
-indices = torch.randint(100, size=(2,))
-print(acc[indices])
+indices = torch.tensor([56,74])
 
 # # PCA Plots
 model.plot_PCAs(indices, stimuli)
-#model.participation_ratio(stimuli, labels, p=True)
+m,var, PRs = model.participation_ratio(stimuli, labels, p=True)
+# Print PR by model index
+print(f'Participation ratio for model index {indices[0]} = {PRs[indices[0]]}')
+print(f'Participation ratio for model index {indices[1]} = {PRs[indices[1]]}')
+print(f'Mean PR = {m}')
 
 # # Activity Plots
 model.forward(stimuli)

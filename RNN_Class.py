@@ -47,12 +47,13 @@ class RNN(nn.Module):
 
         # Recurrent parameters
         self.rank = rank
-        # if rank and rank < N_CELL:
-        #     self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,np.sqrt(0.1)))
-        #     self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,np.sqrt(0.1)))
-        # else:
-        #     self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1))
-        self.rec_weights = torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1)
+        if rank and rank < N_CELL:
+            self.rec_m = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, rank).normal_(0,np.sqrt(0.1)))
+            self.rec_n = torch.nn.Parameter(torch.FloatTensor(N_Models, rank, N_CELL).normal_(0,np.sqrt(0.1)))
+        else:
+            self.rec_weights = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1))
+        # Control model
+        # self.rec_weights = torch.FloatTensor(N_Models, N_CELL, N_CELL).normal_(0, 0.1)
         self.rec_biases  = torch.nn.Parameter(torch.FloatTensor(N_Models, N_CELL, 1).normal_(0, 0.1))
 
         # Input and output weights
@@ -135,7 +136,7 @@ class RNN(nn.Module):
     def forward(self, x):
         '''Forward pass, directing to all tasks.'''
         x = x.float()
-        if self.rank:
+        if self.rank and self.rank < self.N_cell:
             self.rec_weights = self.rec_m @ self.rec_n
         if self.task == 'dms':
             return self.forward_dms(x)
@@ -734,7 +735,7 @@ class RNN(nn.Module):
             cov = np.cov(np.transpose(uall,[0,1,3,2]).reshape(-1,self.N_cell).T)
             w, v = np.linalg.eig(cov)
             PRs[ind] = (np.sum(w) ** 2) / np.sum(w ** 2)
-        
+
         # Plot Participation ratios by index
         plt.bar(np.arange(self.N_Models), PRs)
         ax = plt.gca()
@@ -776,7 +777,7 @@ class RNN(nn.Module):
     '''Utility Functions'''
     def to_gpu(self):
         # At this training scale CPU > GPU
-        device = 'cpu'#torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         for name, param in self.named_parameters():
             param.data = param.data.to(device)
         for name, buffer in self.named_buffers():
