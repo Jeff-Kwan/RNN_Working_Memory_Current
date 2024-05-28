@@ -5,7 +5,7 @@ from RNN_Class import RNN
 start_time = time()
 
 # Load Model
-model_name = 'Baseline Model 2'
+model_name = 'Control Model'
 model = RNN('Models/', model_name, p=True)
 
 # DMS Data & Run Model
@@ -20,19 +20,21 @@ labels = torch.tensor([[[0,1], [1,0]],
 
 # Test Model
 model.eval()
-# acc = model.test(stimuli, labels, p=True)
+acc = model.test(stimuli, labels, p=True)
 # print(f'Number of successful models: {sum(acc.eq(1))}')
 # indices = torch.nonzero(acc.eq(1), as_tuple=True)[0]
 # indices = indices[torch.randint(len(indices), size=(5,))] # Random Correct Model(s)
+indices = torch.randint(100, size=(2,))
+print(acc[indices])
 
 # # PCA Plots
-# model.plot_PCAs(indices, stimuli)
-model.participation_ratio(stimuli, labels, p=True)
+model.plot_PCAs(indices, stimuli)
+#model.participation_ratio(stimuli, labels, p=True)
 
 # # Activity Plots
-# model.forward(stimuli)
-# model.plot_abs_activity(indices, stimuli)
-# model.plot_drs(indices, stimuli)
+model.forward(stimuli)
+model.plot_abs_activity(indices, stimuli)
+model.plot_drs(indices, stimuli)
 
 # Time Elapsed
 hours, remainder = divmod(time() - start_time, 3600)
